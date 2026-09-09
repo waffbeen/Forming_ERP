@@ -1,0 +1,100 @@
+/* indas-ui first: it supplies the full token set. Ours loads after and
+   overrides the palette with this app's classic theme variants. */
+@import 'indas-ui/tokens.css';
+@import '../styles/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    @apply bg-bg-app text-fg-default font-sans text-base;
+  }
+
+  /* Digits line up in every grid and spec list */
+  .font-mono,
+  table td,
+  table th {
+    font-variant-numeric: tabular-nums;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-bg-app rounded-sm;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-bd-strong rounded-md border-2 border-solid border-transparent bg-clip-content;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-fg-subtle bg-clip-content;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-bg-surface border border-bd-default rounded-lg overflow-hidden;
+  }
+
+  .panel-head {
+    @apply px-4 py-3 border-b border-bd-subtle flex items-center justify-between gap-3;
+  }
+
+  .eyebrow {
+    @apply text-2xs font-semibold uppercase tracking-[0.12em] text-primary;
+  }
+
+  .label-caps {
+    @apply text-2xs font-semibold uppercase tracking-[0.07em] text-fg-muted;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   Modal presentation
+
+   indas-ui centres its dialogs already, but washes the page in a
+   heavy black. These rules soften that to a light grey with a
+   real blur, so the grid stays legible behind the modal, and pin
+   the layering above the sidebar rail and header.
+   ============================================================ */
+
+/* The dialog overlay, matched on the classes the library gives it. */
+.bg-black\/50.backdrop-blur-\[2px\] {
+  z-index: 100;
+  background-color: rgb(var(--fg-default) / 0.16);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Dialog content sits above its own overlay, and both above the shell. */
+[role='dialog'] {
+  z-index: 110;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-black\/50.backdrop-blur-\[2px\] {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: rgb(var(--fg-default) / 0.28);
+  }
+}

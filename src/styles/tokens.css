@@ -1,0 +1,323 @@
+/* ============================================================
+   Thermoforming ERP - semantic design tokens
+
+   Three layers, in cascade order:
+     1. :root / .dark      neutrals, status colours, scale
+     2. .theme-<name>      accent set for the light mode
+     3. .dark.theme-<name> accent set for the dark mode
+
+   Neutrals are a plain cool grey with no hue borrowed from any
+   accent, so every theme variant sits on the same ground.
+   Palettes are deliberately classic: no neon, no fluorescents.
+   ============================================================ */
+
+:root {
+  /* ---- Backgrounds ---- */
+  --bg-app: 243 245 247;
+  --bg-surface: 255 255 255;
+  --bg-header: 255 255 255;
+  --bg-subtle: 246 248 249;
+  --bg-hover: 236 239 242;
+  --bg-grid-header: 239 242 245;
+
+  /* ---- Foregrounds ---- */
+  --fg-default: 22 29 36;
+  --fg-muted: 90 103 115;
+  --fg-subtle: 135 148 161;
+  --fg-inverse: 255 255 255;
+
+  /* ---- Borders ---- */
+  --bd-default: 220 226 232;
+  --bd-strong: 195 204 213;
+  --bd-subtle: 234 238 242;
+
+  /* ---- Status: muted, print-safe, never fluorescent ---- */
+  --color-success: 32 116 74;
+  --color-success-subtle: 224 240 231;
+  --color-warning: 158 106 22;
+  --color-warning-subtle: 247 237 220;
+  --color-error: 168 55 47;
+  --color-error-subtle: 248 229 227;
+  --color-info: 39 92 133;
+  --color-info-subtle: 226 237 245;
+
+  /* ---- Typography ---- */
+  --font-sans: 'IBM Plex Sans';
+  --font-mono: 'IBM Plex Mono';
+
+  /* ---- Radius ---- */
+  --radius-sm: 4px;
+  --radius-md: 7px;
+  --radius-lg: 11px;
+  --radius-xl: 15px;
+
+  /* ---- Shadows ---- */
+  --shadow-sm: 0 1px 2px rgb(18 24 30 / 0.06);
+  --shadow-md: 0 2px 4px rgb(18 24 30 / 0.06), 0 6px 16px rgb(18 24 30 / 0.06);
+  --shadow-lg: 0 12px 32px rgb(18 24 30 / 0.14);
+
+  /* ---- Accent fallback ----
+     Mirrors .theme-slate so the page still renders correctly if the
+     theme class never lands (scripting off, or a failed hydration). */
+  --bg-selected: 228 235 241;
+  --color-primary: 58 90 120;
+  --color-primary-hover: 46 74 99;
+  --color-primary-subtle: 228 235 241;
+  --color-primary-line: 191 208 222;
+  --color-on-primary: 255 255 255;
+  --color-highlight: 138 101 51;
+  --color-highlight-subtle: 244 236 222;
+}
+
+.dark {
+  --bg-app: 18 22 26;
+  --bg-surface: 26 32 38;
+  --bg-header: 22 27 33;
+  --bg-subtle: 33 41 48;
+  --bg-hover: 42 51 59;
+  --bg-grid-header: 33 41 48;
+
+  --fg-default: 232 237 242;
+  --fg-muted: 150 163 174;
+  --fg-subtle: 111 124 136;
+  --fg-inverse: 18 22 26;
+
+  --bd-default: 42 51 59;
+  --bd-strong: 59 70 80;
+  --bd-subtle: 35 43 50;
+
+  --color-success: 96 176 133;
+  --color-success-subtle: 20 43 33;
+  --color-warning: 199 154 94;
+  --color-warning-subtle: 45 36 21;
+  --color-error: 214 129 120;
+  --color-error-subtle: 51 28 26;
+  --color-info: 122 167 202;
+  --color-info-subtle: 21 37 50;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 2px 4px rgb(0 0 0 / 0.35), 0 6px 16px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.55);
+}
+
+/* ============================================================
+   SLATE — the default. Classic corporate blue-grey with a
+   muted ochre accent for scrap and material callouts.
+   ============================================================ */
+.theme-slate {
+  --bg-selected: 228 235 241;
+
+  --color-primary: 58 90 120;
+  --color-primary-hover: 46 74 99;
+  --color-primary-subtle: 228 235 241;
+  --color-primary-line: 191 208 222;
+  --color-on-primary: 255 255 255;
+
+  --color-highlight: 138 101 51;
+  --color-highlight-subtle: 244 236 222;
+}
+
+.dark.theme-slate {
+  --bg-selected: 28 40 51;
+
+  --color-primary: 127 163 196;
+  --color-primary-hover: 148 180 210;
+  --color-primary-subtle: 28 40 51;
+  --color-primary-line: 46 63 79;
+  --color-on-primary: 15 23 32;
+
+  --color-highlight: 199 154 94;
+  --color-highlight-subtle: 46 37 23;
+}
+
+/* ============================================================
+   GRAPHITE — near-neutral charcoal. The quietest option, for
+   sites that want the data to carry all the colour.
+   ============================================================ */
+.theme-graphite {
+  --bg-selected: 232 234 237;
+
+  --color-primary: 74 85 96;
+  --color-primary-hover: 59 68 77;
+  --color-primary-subtle: 232 234 237;
+  --color-primary-line: 198 204 211;
+  --color-on-primary: 255 255 255;
+
+  --color-highlight: 125 90 60;
+  --color-highlight-subtle: 243 235 226;
+}
+
+.dark.theme-graphite {
+  --bg-selected: 31 36 42;
+
+  --color-primary: 152 164 176;
+  --color-primary-hover: 174 185 196;
+  --color-primary-subtle: 31 36 42;
+  --color-primary-line: 51 58 66;
+  --color-on-primary: 20 24 28;
+
+  --color-highlight: 192 154 112;
+  --color-highlight-subtle: 42 33 24;
+}
+
+/* ============================================================
+   BURGUNDY — deep wine with an olive accent. Traditional,
+   reads well on printed job cards and COAs.
+   ============================================================ */
+.theme-burgundy {
+  --bg-selected: 243 227 230;
+
+  --color-primary: 123 45 59;
+  --color-primary-hover: 101 36 48;
+  --color-primary-subtle: 243 227 230;
+  --color-primary-line: 220 188 195;
+  --color-on-primary: 255 255 255;
+
+  --color-highlight: 107 97 52;
+  --color-highlight-subtle: 240 238 222;
+}
+
+.dark.theme-burgundy {
+  --bg-selected: 44 26 31;
+
+  --color-primary: 201 127 139;
+  --color-primary-hover: 216 148 159;
+  --color-primary-subtle: 44 26 31;
+  --color-primary-line: 71 42 49;
+  --color-on-primary: 28 16 19;
+
+  --color-highlight: 180 169 106;
+  --color-highlight-subtle: 38 35 15;
+}
+
+/* ============================================================
+   FOREST — deep green with a warm ochre accent. Suits the
+   recycling side of the plant without shouting about it.
+   ============================================================ */
+.theme-forest {
+  --bg-selected: 225 237 231;
+
+  --color-primary: 44 85 69;
+  --color-primary-hover: 35 68 55;
+  --color-primary-subtle: 225 237 231;
+  --color-primary-line: 185 212 199;
+  --color-on-primary: 255 255 255;
+
+  --color-highlight: 138 101 51;
+  --color-highlight-subtle: 244 236 222;
+}
+
+.dark.theme-forest {
+  --bg-selected: 22 36 29;
+
+  --color-primary: 121 178 154;
+  --color-primary-hover: 143 195 172;
+  --color-primary-subtle: 22 36 29;
+  --color-primary-line: 40 62 52;
+  --color-on-primary: 12 22 17;
+
+  --color-highlight: 199 154 94;
+  --color-highlight-subtle: 42 34 20;
+}
+
+/* ============================================================
+   BRONZE — warm brown with a cool slate accent. The only
+   warm-led variant; useful when the plant prints on kraft.
+   ============================================================ */
+.theme-bronze {
+  --bg-selected: 244 233 221;
+
+  --color-primary: 138 90 43;
+  --color-primary-hover: 113 72 35;
+  --color-primary-subtle: 244 233 221;
+  --color-primary-line: 223 198 169;
+  --color-on-primary: 255 255 255;
+
+  --color-highlight: 74 95 107;
+  --color-highlight-subtle: 227 234 238;
+}
+
+.dark.theme-bronze {
+  --bg-selected: 42 32 24;
+
+  --color-primary: 201 148 97;
+  --color-primary-hover: 214 166 119;
+  --color-primary-subtle: 42 32 24;
+  --color-primary-line: 67 53 42;
+  --color-on-primary: 26 19 13;
+
+  --color-highlight: 143 168 181;
+  --color-highlight-subtle: 23 36 42;
+}
+
+/* ============================================================
+   INDIGO — classic deep indigo with an ochre accent. Closest
+   to a conventional enterprise blue without going bright.
+   ============================================================ */
+.theme-indigo {
+  --bg-selected: 230 232 242;
+
+  --color-primary: 63 74 122;
+  --color-primary-hover: 51 60 100;
+  --color-primary-subtle: 230 232 242;
+  --color-primary-line: 194 200 224;
+  --color-on-primary: 255 255 255;
+
+  --color-highlight: 138 101 51;
+  --color-highlight-subtle: 244 236 222;
+}
+
+.dark.theme-indigo {
+  --bg-selected: 29 32 51;
+
+  --color-primary: 139 150 200;
+  --color-primary-hover: 160 170 214;
+  --color-primary-subtle: 29 32 51;
+  --color-primary-line: 51 56 86;
+  --color-on-primary: 17 20 38;
+
+  --color-highlight: 199 154 94;
+  --color-highlight-subtle: 42 34 20;
+}
+
+/* ============================================================
+   COMPATIBILITY ALIASES for indas-ui
+
+   The library names some tokens differently from this app, and
+   treats "accent" as an alias of primary rather than as a second
+   colour. These declarations sit in :root but resolve through
+   var() against whatever the active .theme-* class set on <html>,
+   so every indas-ui component picks up the chosen variant.
+
+   This app's own second colour is --color-highlight, deliberately
+   named so it never collides with the library's accent.
+   ============================================================ */
+:root {
+  --color-accent: var(--color-primary);
+  --color-accent-hover: var(--color-primary-hover);
+  --color-accent-subtle: var(--color-primary-subtle);
+  --color-accent-muted: var(--color-primary-line);
+
+  --color-primary-foreground: var(--color-on-primary);
+  --color-secondary-foreground: var(--color-on-primary);
+
+  --fg-accent: var(--color-primary);
+  --bd-accent: var(--color-primary);
+  --bd-medium: var(--bd-strong);
+
+  --color-icon: var(--fg-muted);
+  --color-icon-hover: var(--fg-default);
+  --color-icon-accent: var(--color-primary);
+
+  --bg-overlay: 0 0 0;
+
+  /* indas-ui references this in a couple of components but never defines it. */
+  --bg-default: var(--bg-app);
+
+  /* The sidebar is the theme's primary, the way Indas Estimo renders it,
+     so switching variant recolours the rail rather than leaving it adrift. */
+  --bg-sidebar: var(--color-primary-hover);
+  --bg-sidebar-hover: var(--color-primary);
+  --fg-sidebar: 255 255 255;
+  --fg-sidebar-dim: 255 255 255;
+}
