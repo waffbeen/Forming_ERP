@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Package, PackageCheck, Palette, Recycle, Route, ScanBarcode,
   Scissors, ShieldCheck, Stamp, Tags, Truck, Users, Warehouse, SlidersHorizontal,
   ClipboardList as PrIcon, ShoppingCart, PackagePlus, Boxes as StockIcon,
+  FileCog, CalendarClock, Gauge, CheckSquare,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -33,8 +34,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Production',
     items: [
+      { label: 'Work Orders', href: '/production/work-order', icon: FileCog, badge: '12' },
+      { label: 'Schedule', href: '/production/schedule', icon: CalendarClock },
+      { label: 'Production Entry', href: '/production/entry', icon: Gauge },
       { label: 'Forming Entry', href: '/forming', icon: Flame, badge: '3' },
       { label: 'Punching Entry', href: '/punching', icon: Scissors, badge: '2' },
+      { label: 'Job Close', href: '/production/close', icon: CheckSquare },
     ],
   },
   {
