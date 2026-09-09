@@ -1,4 +1,5 @@
 export { SalesOrderModal } from './sales-order-modal'
+export { EnquiryModal, EstimationModal } from './sales-modals'
 export { JobCardModal } from './job-card-modal'
 export { FormingEntryModal } from './forming-entry-modal'
 export { CuttingEntryModal } from './cutting-entry-modal'

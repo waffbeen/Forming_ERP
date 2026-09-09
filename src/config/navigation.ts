@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Package, PackageCheck, Palette, Recycle, Route, ScanBarcode,
   Scissors, ShieldCheck, Stamp, Tags, Truck, Users, Warehouse, SlidersHorizontal,
   ClipboardList as PrIcon, ShoppingCart, PackagePlus, Boxes as StockIcon,
-  Gauge, CheckSquare, ListChecks,
+  Gauge, CheckSquare, ListChecks, MessageSquareQuote, Calculator,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -27,6 +27,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Order to Cash',
     items: [
+      { label: 'Sales Enquiries', href: '/sales/enquiry', icon: MessageSquareQuote, badge: '2' },
+      { label: 'Estimations', href: '/sales/estimation', icon: Calculator, badge: '3' },
       { label: 'Sales Orders', href: '/sales-order', icon: FileText, badge: '18' },
       { label: 'Job Cards', href: '/job-card', icon: ClipboardList, badge: '11' },
     ],

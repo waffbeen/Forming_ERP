@@ -1,5 +1,6 @@
 export * from './masters'
 export * from './transactions'
+export * from './sales'
 export * from './quality'
 export * from './masters-extended'
 export * from './procurement'

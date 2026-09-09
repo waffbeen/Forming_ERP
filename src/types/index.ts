@@ -103,6 +103,81 @@ export interface Operator {
   certifiedFor: string[]
 }
 
+/* ============================================================
+   Enquiry to order.
+
+   A customer asks, the plant costs it, the customer accepts, and the
+   order is raised. Each of those is its own record because each can
+   end where it stands: an enquiry can be lost before it is costed, an
+   estimation can be rejected on rate. A repeat order for a design that
+   is already costed skips the middle and is raised direct.
+   ============================================================ */
+
+export type EnquirySource = 'EMAIL' | 'PHONE' | 'PLANT_VISIT' | 'REFERRAL'
+export type EnquiryStatus = 'OPEN' | 'ESTIMATED' | 'CONVERTED' | 'LOST'
+
+export interface SalesEnquiry {
+  enquiryId: string
+  enquiryNo: string
+  enquiryDate: string
+  /** Null while the enquiry is from a prospect who is not a customer yet. */
+  customerId: string | null
+  customerName: string
+  contactPerson: string
+  productDescription: string
+  /** Set once the design resolves to a costed artwork master. */
+  artworkCode: string | null
+  materialType: MaterialType
+  thicknessMicrons: number
+  openLengthMm: number
+  openWidthMm: number
+  depthMm: number
+  expectedQtyPcs: number
+  /** What the customer says they want to pay, if they have said. */
+  targetRatePerPc: number | null
+  requiredBy: string
+  source: EnquirySource
+  status: EnquiryStatus
+  remarks: string
+}
+
+export type EstimationStatus = 'DRAFT' | 'SENT' | 'APPROVED' | 'LOST' | 'CONVERTED'
+
+/**
+ * A costed offer. The weights, sheet count and landed cost are derived from
+ * the open layout by the same engine the job card uses, so the rate quoted to
+ * the customer and the cost booked in production cannot drift apart. Only the
+ * margin and the conversion rate are a commercial decision.
+ */
+export interface Estimation {
+  estimationId: string
+  estimationNo: string
+  estimationDate: string
+  /** Null when the plant is costing a design nobody has formally asked for. */
+  enquiryNo: string | null
+  customerId: string | null
+  customerName: string
+  artworkCode: string | null
+  productDescription: string
+  materialType: MaterialType
+  thicknessMicrons: number
+  openLengthMm: number
+  openWidthMm: number
+  quantityPcs: number
+  conversionRatePerPc: number
+  marginPercent: number
+  validUntil: string
+  status: EstimationStatus
+  preparedBy: string
+  /* Derived from the nesting and costing engine, never keyed in. */
+  upsPerSheet: number
+  sheetsRequired: number
+  grossWeightKg: number
+  costPerPiece: number
+  offeredRatePerPc: number
+  orderValue: number
+}
+
 export interface SalesOrder {
   salesOrderId: string
   soNumber: string
@@ -117,6 +192,10 @@ export interface SalesOrder {
   deliveryDate: string
   ratePerPc: number
   status: OrderStatus
+  /** Where the order came from: a costed estimation, or straight in. */
+  source: 'DIRECT' | 'ESTIMATION'
+  enquiryNo: string | null
+  estimationNo: string | null
 }
 
 export interface JobCard {

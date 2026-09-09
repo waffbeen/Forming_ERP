@@ -8,7 +8,7 @@ import {
 } from '@/components/ui'
 import { DetailModal, SalesOrderModal } from '@/components/modals'
 import { OrderStatusBadge } from '@/lib/shared-ui'
-import { ARTWORKS, MATERIALS, SALES_ORDERS } from '@/data'
+import { ARTWORKS, ESTIMATIONS, MATERIALS, SALES_ORDERS } from '@/data'
 import { DECKLE_MM, PLANT } from '@/config/plant'
 import { calculateCosting, calculateNesting } from '@/lib/layout-calc'
 import {
@@ -95,6 +95,17 @@ export default function SalesOrderPage() {
     },
     { key: 'qty', sortValue: (r) => r.orderQtyPcs, header: 'Order qty', align: 'right', render: (r) => <span className="font-mono">{formatNumber(r.orderQtyPcs)}</span> },
     { key: 'delivery', sortValue: (r) => r.deliveryDate, header: 'Delivery', render: (r) => <span className="font-mono">{formatDayMonth(r.deliveryDate)}</span> },
+    {
+      key: 'source',
+      sortValue: (r) => r.source,
+      header: 'Raised from',
+      render: (r) =>
+        r.estimationNo ? (
+          <span className="font-mono">{r.estimationNo}</span>
+        ) : (
+          <span className="text-fg-subtle">Direct</span>
+        ),
+    },
     { key: 'status', sortValue: (r) => r.status, header: 'Status', render: (r) => <OrderStatusBadge status={r.status} /> },
   ]
 
@@ -113,31 +124,6 @@ export default function SalesOrderPage() {
         }
       />
 
-      <StatsGrid>
-        <StatsCard label="Open orders" value={String(SALES_ORDERS.length)} note="4 due within 3 days" icon={FileText} />
-        <StatsCard
-          label="Awaiting artwork approval"
-          value={String(SALES_ORDERS.filter((o) => o.status === 'AWAITING_ARTWORK').length)}
-          note="Blocks job card release"
-          noteTone="warn"
-          icon={CircleDot}
-        />
-        <StatsCard
-          label="Ready for job card"
-          value={String(SALES_ORDERS.filter((o) => o.status === 'READY_TO_RELEASE').length)}
-          note="Costing locked"
-          noteTone="good"
-          icon={Check}
-        />
-        <StatsCard
-          label="Open order value"
-          value={formatNumber(openValue / 100000, 1)}
-          unit="lakh"
-          note={`Across ${new Set(SALES_ORDERS.map((o) => o.customerId)).size} customers`}
-          icon={IndianRupee}
-        />
-      </StatsGrid>
-
       <>
         <DataTable
           title="Order queue"
@@ -151,6 +137,14 @@ export default function SalesOrderPage() {
           selectedKey={selected.salesOrderId}
           onSelect={(r) => setSelectedId(r.salesOrderId)}
           onOpen={(r) => { setSelectedId(r.salesOrderId); setDetailOpen(true) }}
+          summary={{
+            so: { type: 'custom', customFn: (r) => `${r.length} orders` },
+            qty: { type: 'custom', customFn: (r) => formatNumber(r.reduce((sum, o) => sum + o.orderQtyPcs, 0)) },
+            source: {
+              type: 'custom',
+              customFn: (r) => `${r.filter((o) => o.source === 'ESTIMATION').length} from estimation`,
+            },
+          }}
         />
 
         <div className="flex flex-col gap-3.5">
@@ -167,6 +161,12 @@ export default function SalesOrderPage() {
                   rows={[
                     { label: 'Customer reference', value: artwork.clientProductRef, mono: false },
                     { label: 'Client PO', value: selected.clientPoRef },
+                    {
+                      label: 'Raised from',
+                      value: selected.estimationNo ?? 'Direct order',
+                      mono: Boolean(selected.estimationNo),
+                    },
+                    { label: 'Enquiry', value: selected.enquiryNo ?? 'None', mono: Boolean(selected.enquiryNo) },
                     { label: 'Open layout (expanded)', value: `${artwork.openLengthMm} × ${artwork.openWidthMm} mm` },
                     { label: 'Formed depth', value: `${artwork.depthMm} mm` },
                     { label: 'Reel thickness', value: formatMicrons(selected.thicknessMicrons) },

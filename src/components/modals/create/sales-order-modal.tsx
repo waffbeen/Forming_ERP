@@ -6,14 +6,21 @@ import { CustomerModal } from './master-modals'
 import {
   DerivedField, FormGrid, FormSection, Input, Select, SelectWithCreate, Textarea,
 } from '@/components/ui'
-import { ARTWORKS, CUSTOMERS, MATERIALS } from '@/data'
+import { ARTWORKS, CUSTOMERS, MATERIALS, quotableEstimations } from '@/data'
 import { DECKLE_MM, PLANT } from '@/config/plant'
 import { calculateCosting, calculateNesting } from '@/lib/layout-calc'
 import { formatCurrency, formatKg, formatNumber, formatPercent } from '@/lib/utils'
 
 const CONVERSION_PER_PC = 0.85
 
+const OFFERS = quotableEstimations()
+
 export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  /* A repeat of a design that is already costed comes straight in; anything
+     the customer had to be quoted for is raised against that offer, so the
+     rate on the order is the rate that was actually accepted. */
+  const [raisedFrom, setRaisedFrom] = React.useState<'DIRECT' | 'ESTIMATION'>('DIRECT')
+  const [estimationNo, setEstimationNo] = React.useState('')
   const [customerId, setCustomerId] = React.useState('')
   const [artworkCode, setArtworkCode] = React.useState('')
   const [poRef, setPoRef] = React.useState('')
@@ -29,6 +36,18 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
     () => ARTWORKS.filter((a) => !customerId || a.customerId === customerId),
     [customerId],
   )
+
+  const estimation = OFFERS.find((e) => e.estimationNo === estimationNo)
+
+  /* Taking the offer fills the order from it rather than asking for the same
+     numbers a second time, where they could be keyed in differently. */
+  React.useEffect(() => {
+    if (!estimation) return
+    if (estimation.customerId) setCustomerId(estimation.customerId)
+    if (estimation.artworkCode) setArtworkCode(estimation.artworkCode)
+    setQty(String(estimation.quantityPcs))
+    setRate(String(estimation.offeredRatePerPc))
+  }, [estimation])
 
   const artwork = ARTWORKS.find((a) => a.artworkCode === artworkCode)
   const material = MATERIALS.find((m) => m.materialType === artwork?.materialType)
@@ -61,9 +80,13 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
       : null
 
   const margin = costing && rateNum > 0 ? ((rateNum - costing.costPerPiece) / rateNum) * 100 : null
-  const canSave = Boolean(customerId && artworkCode && qtyNum > 0 && deliveryDate)
+  const needsOffer = raisedFrom === 'ESTIMATION' && !estimationNo
+  const canSave =
+    Boolean(customerId && artworkCode && qtyNum > 0 && deliveryDate) && !needsOffer
 
   const reset = () => {
+    setRaisedFrom('DIRECT')
+    setEstimationNo('')
     setCustomerId('')
     setArtworkCode('')
     setPoRef('')
@@ -94,9 +117,47 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
       saving={saving}
       saveDisabled={!canSave}
       footerNote={
-        costing ? `Landed cost ${formatCurrency(costing.costPerPiece)} per tray` : 'Pick an artwork and quantity to cost the order'
+        needsOffer
+          ? 'Select the estimation this order is being raised against'
+          : costing
+            ? `Landed cost ${formatCurrency(costing.costPerPiece)} per tray`
+            : 'Pick an artwork and quantity to cost the order'
       }
     >
+      <FormSection title="Raised from">
+        <FormGrid cols={3}>
+          <Select
+            label="Order source"
+            value={raisedFrom}
+            onChange={(e) => {
+              setRaisedFrom(e.target.value as 'DIRECT' | 'ESTIMATION')
+              setEstimationNo('')
+            }}
+            options={[
+              { value: 'DIRECT', label: 'Direct order' },
+              { value: 'ESTIMATION', label: 'Against an estimation' },
+            ]}
+            helper="Direct is for a repeat of a design already costed"
+          />
+          <Select
+            label="Estimation"
+            required={raisedFrom === 'ESTIMATION'}
+            disabled={raisedFrom !== 'ESTIMATION'}
+            placeholder={raisedFrom === 'ESTIMATION' ? 'Select the accepted offer' : 'Not applicable'}
+            value={estimationNo}
+            onChange={(e) => setEstimationNo(e.target.value)}
+            options={OFFERS.map((o) => ({
+              value: o.estimationNo,
+              label: `${o.estimationNo} — ${o.customerName} @ ${formatCurrency(o.offeredRatePerPc)}`,
+            }))}
+          />
+          <DerivedField
+            label="Offered rate"
+            value={estimation ? `${formatCurrency(estimation.offeredRatePerPc)} / pc` : '—'}
+          />
+        </FormGrid>
+      </FormSection>
+
       <FormSection title="Order">
         <FormGrid cols={3}>
           <SelectWithCreate
