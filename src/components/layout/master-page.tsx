@@ -22,8 +22,10 @@ export interface MasterPageProps<T> {
 
 /**
  * Every master screen is the same shape: a centred title, the actions on their
- * own row, a few counts, then one grid. Adding a master is a matter of
- * describing its columns.
+ * own row, then one full-width grid.
+ *
+ * A single click selects a row; a double click opens it in the same form used
+ * to create one, with its values filled in.
  */
 export function MasterPage<T>({
   title,
@@ -36,6 +38,7 @@ export function MasterPage<T>({
   createModal,
 }: MasterPageProps<T>) {
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [editRow, setEditRow] = React.useState<T | null>(null)
 
   return (
     <>
@@ -71,9 +74,13 @@ export function MasterPage<T>({
         rowKey={rowKey}
         title={title}
         mainColumns={mainColumns}
+        onOpen={createModal ? (row) => setEditRow(row) : undefined}
       />
 
       {createModal?.({ isOpen: createOpen, onClose: () => setCreateOpen(false) })}
+
+      {/* Same form, opened on a row rather than on the New button. */}
+      {editRow ? createModal?.({ isOpen: true, onClose: () => setEditRow(null) }) : null}
     </>
   )
 }

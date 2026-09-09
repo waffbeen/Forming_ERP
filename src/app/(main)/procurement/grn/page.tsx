@@ -4,10 +4,9 @@ import * as React from 'react'
 import { AlertTriangle, CheckCircle2, Clock, PackagePlus, Plus } from 'lucide-react'
 import { PageHeader, Note } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
-  SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
 } from '@/components/ui'
-import { GrnModal } from '@/components/modals'
+import { DetailModal, GrnModal } from '@/components/modals'
 import { BINS, GRNS, ITEMS, SUPPLIERS, USERS } from '@/data'
 import { PLANT } from '@/config/plant'
 import { formatDate, formatNumber } from '@/lib/utils'
@@ -49,6 +48,7 @@ export default function GrnPage() {
   const [tab, setTab] = React.useState('ALL')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [selectedId, setSelectedId] = React.useState(GRNS[0].grnId)
+  const [detailOpen, setDetailOpen] = React.useState(false)
 
   const rows = React.useMemo(
     () => (tab === 'ALL' ? GRNS : GRNS.filter((g) => g.lines.some((l) => l.qcStatus === tab))),
@@ -98,7 +98,7 @@ export default function GrnPage() {
         <StatsCard label="Rejected" value={String(rejected.length)} note={`Below the ${PLANT.minMicrons} µm floor`} noteTone="bad" icon={AlertTriangle} />
       </StatsGrid>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <>
         <DataTable
           title="Receipt register"
           rows={rows}
@@ -108,62 +108,62 @@ export default function GrnPage() {
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
           selectedKey={selected.grnId}
           onSelect={(r) => setSelectedId(r.grnId)}
+          onOpen={(r) => { setSelectedId(r.grnId); setDetailOpen(true) }}
         />
 
-        <Panel>
-          <PanelHeader
-            title="Receipt lines"
-            description={<span className="font-mono">{selected.grnNumber}</span>}
-            action={<Badge tone={QC_TONE[grnStatus(selected)]}>{QC_LABEL[grnStatus(selected)]}</Badge>}
+        <DetailModal
+          isOpen={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title={selected.grnNumber}
+          subtitle={supplierName(selected.supplierId)}
+          badge={{ label: QC_LABEL[grnStatus(selected)], tone: QC_TONE[grnStatus(selected)] }}
+        >
+          <SpecList
+            rows={[
+              { label: 'Supplier', value: supplierName(selected.supplierId), mono: false },
+              { label: 'Against PO', value: selected.poNumber },
+              { label: 'Challan', value: selected.supplierChallanNo },
+              { label: 'Invoice', value: selected.supplierInvoiceNo || 'Not received' },
+              { label: 'Received by', value: userName(selected.receivedByUserId), mono: false },
+              {
+                label: 'Inspected by',
+                value: selected.inspectedByUserId ? userName(selected.inspectedByUserId) : 'Awaiting IQC',
+                mono: false,
+              },
+            ]}
           />
-          <PanelBody>
-            <SpecList
-              rows={[
-                { label: 'Supplier', value: supplierName(selected.supplierId), mono: false },
-                { label: 'Against PO', value: selected.poNumber },
-                { label: 'Challan', value: selected.supplierChallanNo },
-                { label: 'Invoice', value: selected.supplierInvoiceNo || 'Not received' },
-                { label: 'Received by', value: userName(selected.receivedByUserId), mono: false },
-                {
-                  label: 'Inspected by',
-                  value: selected.inspectedByUserId ? userName(selected.inspectedByUserId) : 'Awaiting IQC',
-                  mono: false,
-                },
-              ]}
-            />
-            <Divider />
-            <ul className="space-y-2.5">
-              {selected.lines.map((line) => {
-                const item = itemOf(line.itemId)
-                const shortfall = line.challanQty - line.receivedQty
-                return (
-                  <li key={line.lineId} className="rounded-md border border-bd-default px-3 py-2.5">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-sm font-medium">{item?.itemName ?? line.itemId}</span>
-                      <Badge tone={QC_TONE[line.qcStatus]}>{QC_LABEL[line.qcStatus]}</Badge>
-                    </div>
-                    <p className="mt-0.5 font-mono text-xs text-fg-muted">
-                      challan {formatNumber(line.challanQty)} · weighed {formatNumber(line.receivedQty)} {item?.uom}
-                      {shortfall !== 0 ? <span className="text-warning"> · {formatNumber(Math.abs(shortfall))} short</span> : null}
+          <Divider />
+          <ul className="space-y-2.5">
+            {selected.lines.map((line) => {
+              const item = itemOf(line.itemId)
+              const shortfall = line.challanQty - line.receivedQty
+              return (
+                <li key={line.lineId} className="rounded-md border border-bd-default px-3 py-2.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-medium">{item?.itemName ?? line.itemId}</span>
+                    <Badge tone={QC_TONE[line.qcStatus]}>{QC_LABEL[line.qcStatus]}</Badge>
+                  </div>
+                  <p className="mt-0.5 font-mono text-xs text-fg-muted">
+                    challan {formatNumber(line.challanQty)} · weighed {formatNumber(line.receivedQty)} {item?.uom}
+                    {shortfall !== 0 ? <span className="text-warning"> · {formatNumber(Math.abs(shortfall))} short</span> : null}
+                  </p>
+                  {line.reelId ? (
+                    <p className="mt-0.5 font-mono text-xs">
+                      {line.reelId} · {line.thicknessMicrons} µm · bin {binCode(line.binId)}
                     </p>
-                    {line.reelId ? (
-                      <p className="mt-0.5 font-mono text-xs">
-                        {line.reelId} · {line.thicknessMicrons} µm · bin {binCode(line.binId)}
-                      </p>
-                    ) : null}
-                    {line.qcRemarks ? <p className="mt-1 text-xs text-fg-subtle">{line.qcRemarks}</p> : null}
-                  </li>
-                )
-              })}
-            </ul>
-            <Divider />
-            <Note>
-              Only a line IQC has approved creates a stock movement, so nothing reaches a bin without a receipt and an
-              inspection behind it.
-            </Note>
-          </PanelBody>
-        </Panel>
-      </div>
+                  ) : null}
+                  {line.qcRemarks ? <p className="mt-1 text-xs text-fg-subtle">{line.qcRemarks}</p> : null}
+                </li>
+              )
+            })}
+          </ul>
+          <Divider />
+          <Note>
+            Only a line IQC has approved creates a stock movement, so nothing reaches a bin without a receipt and an
+            inspection behind it.
+          </Note>
+        </DetailModal>
+      </>
 
       <GrnModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
     </>

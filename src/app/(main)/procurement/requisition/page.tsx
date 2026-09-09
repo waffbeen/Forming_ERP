@@ -4,10 +4,9 @@ import * as React from 'react'
 import { AlertTriangle, CheckCircle2, ClipboardList, Clock, Plus } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
-  SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
 } from '@/components/ui'
-import { RequisitionModal } from '@/components/modals'
+import { DetailModal, RequisitionModal } from '@/components/modals'
 import { ITEMS, PURCHASE_REQUISITIONS, USERS, itemsBelowReorder } from '@/data'
 import { formatDate, formatNumber } from '@/lib/utils'
 import type { PrStatus, PurchaseRequisition } from '@/types/procurement'
@@ -48,6 +47,7 @@ export default function RequisitionPage() {
   const [tab, setTab] = React.useState('ALL')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [selectedId, setSelectedId] = React.useState(PURCHASE_REQUISITIONS[0].prId)
+  const [detailOpen, setDetailOpen] = React.useState(false)
 
   const rows = React.useMemo(
     () => (tab === 'ALL' ? PURCHASE_REQUISITIONS : PURCHASE_REQUISITIONS.filter((p) => p.prStatus === tab)),
@@ -111,7 +111,7 @@ export default function RequisitionPage() {
         />
       </StatsGrid>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+      <>
         <DataTable
           title="Requisition queue"
           rows={rows}
@@ -121,49 +121,49 @@ export default function RequisitionPage() {
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
           selectedKey={selected.prId}
           onSelect={(r) => setSelectedId(r.prId)}
+          onOpen={(r) => { setSelectedId(r.prId); setDetailOpen(true) }}
         />
 
-        <Panel>
-          <PanelHeader
-            title="Requisition lines"
-            description={<span className="font-mono">{selected.prNumber}</span>}
-            action={<Badge tone={STATUS_TONE[selected.prStatus]}>{STATUS_LABEL[selected.prStatus]}</Badge>}
+        <DetailModal
+          isOpen={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title={selected.prNumber}
+          subtitle={`${selected.department} · ${formatDate(selected.prDate)}`}
+          badge={{ label: STATUS_LABEL[selected.prStatus], tone: STATUS_TONE[selected.prStatus] }}
+        >
+          <SpecList
+            rows={[
+              { label: 'Raised by', value: `${userName(selected.raisedByUserId)} · ${selected.department}`, mono: false },
+              { label: 'Raised on', value: formatDate(selected.prDate) },
+              {
+                label: 'Approved',
+                value: selected.approvedOn
+                  ? `${userName(selected.approvedByUserId)} · ${formatDate(selected.approvedOn)}`
+                  : 'Not yet approved',
+                mono: false,
+              },
+            ]}
           />
-          <PanelBody>
-            <SpecList
-              rows={[
-                { label: 'Raised by', value: `${userName(selected.raisedByUserId)} · ${selected.department}`, mono: false },
-                { label: 'Raised on', value: formatDate(selected.prDate) },
-                {
-                  label: 'Approved',
-                  value: selected.approvedOn
-                    ? `${userName(selected.approvedByUserId)} · ${formatDate(selected.approvedOn)}`
-                    : 'Not yet approved',
-                  mono: false,
-                },
-              ]}
-            />
-            <Divider />
-            <ul className="space-y-2.5">
-              {selected.lines.map((line) => (
-                <li key={line.lineId} className="rounded-md border border-bd-default px-3 py-2.5">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-sm font-medium">{itemName(line.itemId)}</span>
-                    <span className="shrink-0 font-mono text-sm font-semibold">
-                      {formatNumber(line.quantity)} {itemUom(line.itemId)}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 font-mono text-xs text-fg-muted">
-                    {itemCode(line.itemId)} · required {formatDate(line.requiredBy)}
-                    {line.forJobCardNo ? ` · ${line.forJobCardNo}` : ''}
-                  </p>
-                  {line.remarks ? <p className="mt-1 text-xs text-fg-subtle">{line.remarks}</p> : null}
-                </li>
-              ))}
-            </ul>
-          </PanelBody>
-        </Panel>
-      </div>
+          <Divider />
+          <ul className="space-y-2.5">
+            {selected.lines.map((line) => (
+              <li key={line.lineId} className="rounded-md border border-bd-default px-3 py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm font-medium">{itemName(line.itemId)}</span>
+                  <span className="shrink-0 font-mono text-sm font-semibold">
+                    {formatNumber(line.quantity)} {itemUom(line.itemId)}
+                  </span>
+                </div>
+                <p className="mt-0.5 font-mono text-xs text-fg-muted">
+                  {itemCode(line.itemId)} · required {formatDate(line.requiredBy)}
+                  {line.forJobCardNo ? ` · ${line.forJobCardNo}` : ''}
+                </p>
+                {line.remarks ? <p className="mt-1 text-xs text-fg-subtle">{line.remarks}</p> : null}
+              </li>
+            ))}
+          </ul>
+        </DetailModal>
+      </>
 
       <RequisitionModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
     </>

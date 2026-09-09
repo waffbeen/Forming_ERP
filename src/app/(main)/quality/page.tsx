@@ -123,7 +123,7 @@ export default function QualityPage() {
       </div>
 
       {tab === 'CLEARANCE' ? (
-        <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <>
           <Panel>
             <PanelHeader title="Machine gate" />
             <PanelBody>
@@ -168,7 +168,7 @@ export default function QualityPage() {
               />
             </PanelBody>
         </Panel>
-        </div>
+        </>
       ) : null}
 
       {tab === 'IQC' ? (

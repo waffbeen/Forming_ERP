@@ -6,6 +6,8 @@ export {
 } from 'indas-ui'
 
 export { StandardModal } from './standard-modal'
+export { DetailModal } from './detail-modal'
+export type { DetailModalProps } from './detail-modal'
 export type { StandardModalProps, ModalSize } from './standard-modal'
 
 export * from './create'

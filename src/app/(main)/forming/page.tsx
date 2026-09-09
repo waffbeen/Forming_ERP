@@ -7,7 +7,7 @@ import {
   Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
   SpecList, StackedCell, StatsCard, StatsGrid,
 } from '@/components/ui'
-import { FormingEntryModal } from '@/components/modals'
+import { DetailModal, FormingEntryModal } from '@/components/modals'
 import { SignatureGate, ZoneTemperatures } from '@/components/forming'
 import { FORMING_LOGS, JOB_CARDS, REELS, ZONE_TEMPERATURES } from '@/data'
 import { FORMING_TEMPERATURE_C } from '@/config/plant'
@@ -16,6 +16,7 @@ import type { FormingLog } from '@/types'
 
 export default function FormingPage() {
   const [selectedId, setSelectedId] = React.useState(FORMING_LOGS[0].formingLogId)
+  const [detailOpen, setDetailOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
   const selected = FORMING_LOGS.find((f) => f.formingLogId === selectedId) ?? FORMING_LOGS[0]
   const job = JOB_CARDS.find((j) => j.jobCardNo === selected.jobCardNo)
@@ -84,7 +85,7 @@ export default function FormingPage() {
         />
       </StatsGrid>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <>
         <div className="flex flex-col gap-3.5">
           <DataTable
             title="Forming run log"
@@ -95,6 +96,7 @@ export default function FormingPage() {
             searchPlaceholder="Search job card, reel or operator"
             selectedKey={selectedId}
             onSelect={(r) => setSelectedId(r.formingLogId)}
+          onOpen={(r) => { setSelectedId(r.formingLogId); setDetailOpen(true) }}
           />
 
           <Panel>
@@ -121,64 +123,62 @@ export default function FormingPage() {
         </Panel>
         </div>
 
-        <Panel>
-          <PanelHeader
-            title="Run detail"
-            description={<span className="font-mono">{selected.jobCardNo}</span>}
-            action={<Badge tone={selected.firstPieceQc === 'APPROVED' ? 'success' : 'warning'}>First piece {selected.firstPieceQc.toLowerCase()}</Badge>}
+        <DetailModal
+          isOpen={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title={selected.jobCardNo}
+          subtitle={job?.customerName ?? ''}
+        >
+          <SpecList
+            rows={[
+              { label: 'Customer', value: job?.customerName ?? '—', mono: false },
+              { label: 'Artwork', value: job?.artworkCode ?? '—' },
+              { label: 'Operator', value: selected.operator, mono: false },
+              { label: 'Shift', value: selected.shift, mono: false },
+            ]}
           />
-          <PanelBody>
-            <SpecList
-              rows={[
-                { label: 'Customer', value: job?.customerName ?? '—', mono: false },
-                { label: 'Artwork', value: job?.artworkCode ?? '—' },
-                { label: 'Operator', value: selected.operator, mono: false },
-                { label: 'Shift', value: selected.shift, mono: false },
-              ]}
-            />
-            <Divider />
-            <SpecList
-              rows={[
-                { label: 'Reel issued', value: selected.reelId },
-                { label: 'Supplier', value: reel?.supplier ?? '—', mono: false },
-                { label: 'Deckle', value: `${reel?.deckleWidthMm ?? 620} mm` },
-                { label: 'Issued weight', value: formatKg(selected.issuedWeightKg) },
-                { label: 'Returned weight', value: formatKg(selected.returnedReelWeightKg) },
-                { label: 'Consumed', value: formatKg(selected.consumedWeightKg), emphasis: true },
-              ]}
-            />
-            <Divider />
-            <SpecList
-              rows={[
-                { label: 'Start counter', value: formatNumber(selected.startCounterReading) },
-                { label: 'End counter', value: formatNumber(selected.endCounterReading) },
-                {
-                  label: 'Formed sheets',
-                  value: formatNumber(selected.outputFormedSheets),
-                  emphasis: true,
-                },
-                {
-                  label: 'Grams per sheet',
-                  value:
-                    selected.outputFormedSheets > 0
-                      ? `${formatNumber((selected.consumedWeightKg * 1000) / selected.outputFormedSheets, 1)} g`
-                      : '—',
-                },
-              ]}
-            />
-            {selected.outputFormedSheets > 0 ? (
-              <>
-                <Divider />
-                <ZoneTemperatures
-                  readings={ZONE_TEMPERATURES}
-                  min={FORMING_TEMPERATURE_C.PET.min}
-                  max={FORMING_TEMPERATURE_C.PET.max}
-                />
-              </>
-            ) : null}
-          </PanelBody>
-        </Panel>
-      </div>
+          <Divider />
+          <SpecList
+            rows={[
+              { label: 'Reel issued', value: selected.reelId },
+              { label: 'Supplier', value: reel?.supplier ?? '—', mono: false },
+              { label: 'Deckle', value: `${reel?.deckleWidthMm ?? 620} mm` },
+              { label: 'Issued weight', value: formatKg(selected.issuedWeightKg) },
+              { label: 'Returned weight', value: formatKg(selected.returnedReelWeightKg) },
+              { label: 'Consumed', value: formatKg(selected.consumedWeightKg), emphasis: true },
+            ]}
+          />
+          <Divider />
+          <SpecList
+            rows={[
+              { label: 'Start counter', value: formatNumber(selected.startCounterReading) },
+              { label: 'End counter', value: formatNumber(selected.endCounterReading) },
+              {
+                label: 'Formed sheets',
+                value: formatNumber(selected.outputFormedSheets),
+                emphasis: true,
+              },
+              {
+                label: 'Grams per sheet',
+                value:
+                  selected.outputFormedSheets > 0
+                    ? `${formatNumber((selected.consumedWeightKg * 1000) / selected.outputFormedSheets, 1)} g`
+                    : '—',
+              },
+            ]}
+          />
+          {selected.outputFormedSheets > 0 ? (
+            <>
+              <Divider />
+              <ZoneTemperatures
+                readings={ZONE_TEMPERATURES}
+                min={FORMING_TEMPERATURE_C.PET.min}
+                max={FORMING_TEMPERATURE_C.PET.max}
+              />
+            </>
+          ) : null}
+        </DetailModal>
+      </>
 
       <FormingEntryModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
     </>

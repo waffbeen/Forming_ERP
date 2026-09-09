@@ -5,9 +5,9 @@ import {
   ArrowRight, Boxes, Download, FileText, Lock, PackageCheck, Recycle, Truck, Trash2,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
+import { DetailModal } from '@/components/modals'
 import {
-  Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
-  SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
 } from '@/components/ui'
 import { ReconciliationBar } from '@/components/forming'
 import { COAS, FORMING_LOGS, JOB_CARDS, PACKING_RECORDS, SCRAP_ENTRIES } from '@/data'
@@ -24,6 +24,7 @@ const TABS = [
 export default function PackingPage() {
   const [tab, setTab] = React.useState('READY')
   const [selectedId, setSelectedId] = React.useState(PACKING_RECORDS[0].packingId)
+  const [detailOpen, setDetailOpen] = React.useState(false)
 
   const selected = PACKING_RECORDS.find((p) => p.packingId === selectedId) ?? PACKING_RECORDS[0]
   const job = JOB_CARDS.find((j) => j.jobCardNo === selected.jobCardNo)
@@ -123,39 +124,75 @@ export default function PackingPage() {
         <Tabs tabs={TABS} activeId={tab} onChange={setTab} />
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <>
         <div className="flex flex-col gap-3.5">
-          <Panel>
-            <PanelHeader
-              title="Material reconciliation"
-              description={
-                <span className="font-mono">
-                  {selected.jobCardNo} · reel {job?.reelId ?? '—'} · {formatKg(consumedKg)} consumed
-                </span>
-              }
-              action={<Badge tone="success">Balanced</Badge>}
+          <DetailModal
+            isOpen={detailOpen}
+            onClose={() => setDetailOpen(false)}
+            title={selected.jobCardNo}
+            subtitle={selected.customerName}
+          >
+            <ReconciliationBar goodKg={goodKg} skeletonKg={skeletonKg} rejectKg={rejectKg} />
+            <Divider />
+            <SpecList
+              rows={[
+                { label: 'Reel issued to floor', value: formatKg(formingLog?.issuedWeightKg ?? 0) },
+                { label: 'Returned to store', value: formatKg(formingLog?.returnedReelWeightKg ?? 0) },
+                { label: 'Consumed', value: formatKg(consumedKg), emphasis: true },
+                {
+                  label: 'Sheets formed to punched',
+                  value: `${formatNumber(formingLog?.outputFormedSheets ?? 0)} → ${formatNumber(totalPieces)} pcs`,
+                },
+                { label: 'Weight per tray', value: `${formatNumber(gramsPerPiece, 2)} g` },
+                {
+                  label: 'Unaccounted variance',
+                  value: <span className="text-success">{formatKg(consumedKg - goodKg - skeletonKg - rejectKg, 2)}</span>,
+                },
+              ]}
             />
-            <PanelBody>
-              <ReconciliationBar goodKg={goodKg} skeletonKg={skeletonKg} rejectKg={rejectKg} />
-              <Divider />
-              <SpecList
-                rows={[
-                  { label: 'Reel issued to floor', value: formatKg(formingLog?.issuedWeightKg ?? 0) },
-                  { label: 'Returned to store', value: formatKg(formingLog?.returnedReelWeightKg ?? 0) },
-                  { label: 'Consumed', value: formatKg(consumedKg), emphasis: true },
-                  {
-                    label: 'Sheets formed to punched',
-                    value: `${formatNumber(formingLog?.outputFormedSheets ?? 0)} → ${formatNumber(totalPieces)} pcs`,
-                  },
-                  { label: 'Weight per tray', value: `${formatNumber(gramsPerPiece, 2)} g` },
-                  {
-                    label: 'Unaccounted variance',
-                    value: <span className="text-success">{formatKg(consumedKg - goodKg - skeletonKg - rejectKg, 2)}</span>,
-                  },
-                ]}
-              />
-            </PanelBody>
-        </Panel>
+
+            <Divider />
+            <p className="label-caps mb-2">Dispatch documents</p>
+            <ul className="space-y-1.5">
+            {documents.map((doc) => {
+            const Icon = doc.icon
+            return (
+            <li
+            key={doc.title}
+            className="flex items-center gap-2.5 rounded-md border border-bd-default px-3 py-2.5"
+            >
+            <Icon className="h-4 w-4 shrink-0 text-fg-muted" />
+            <span className="text-sm font-medium">
+            {doc.title}
+            <span className="block font-mono text-xs font-normal text-fg-muted">{doc.sub}</span>
+            </span>
+            <span className="ml-auto">
+            {doc.ready ? <Badge tone="success">Generated</Badge> : <Badge tone="warning">Pending</Badge>}
+            </span>
+            </li>
+            )
+            })}
+            </ul>
+
+            <Divider />
+
+            {coaReleased ? null : (
+            <>
+            <div className="flex items-start gap-3 rounded-md border border-error/35 bg-error-subtle p-3">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+            <div>
+            <h5 className="text-sm font-semibold text-error">Dispatch held</h5>
+            <p className="mt-0.5 text-xs text-fg-muted">
+            The gate pass releases only once the COA is signed against the finished-goods inspection report.
+            </p>
+            </div>
+            </div>
+            <Button variant="primary" disabled className="mt-3 w-full justify-center">
+            Release gate pass
+            </Button>
+            </>
+            )}
+          </DetailModal>
 
           <DataTable
             title="Packing queue"
@@ -165,60 +202,11 @@ export default function PackingPage() {
             mainColumns="job,good,rej,fg"
             selectedKey={selectedId}
             onSelect={(r) => setSelectedId(r.packingId)}
+          onOpen={(r) => { setSelectedId(r.packingId); setDetailOpen(true) }}
           />
         </div>
 
-        <Panel>
-          <PanelHeader
-            title="Dispatch documents"
-            description={<span className="font-mono">{selected.jobCardNo} · {selected.customerName}</span>}
-            action={
-              coaReleased ? <Badge tone="success">All ready</Badge> : <Badge tone="warning">1 pending</Badge>
-            }
-          />
-          <PanelBody>
-            <ul className="space-y-1.5">
-              {documents.map((doc) => {
-                const Icon = doc.icon
-                return (
-                  <li
-                    key={doc.title}
-                    className="flex items-center gap-2.5 rounded-md border border-bd-default px-3 py-2.5"
-                  >
-                    <Icon className="h-4 w-4 shrink-0 text-fg-muted" />
-                    <span className="text-sm font-medium">
-                      {doc.title}
-                      <span className="block font-mono text-xs font-normal text-fg-muted">{doc.sub}</span>
-                    </span>
-                    <span className="ml-auto">
-                      {doc.ready ? <Badge tone="success">Generated</Badge> : <Badge tone="warning">Pending</Badge>}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-
-            <Divider />
-
-            {coaReleased ? null : (
-              <>
-                <div className="flex items-start gap-3 rounded-md border border-error/35 bg-error-subtle p-3">
-                  <Lock className="mt-0.5 h-4 w-4 shrink-0 text-error" />
-                  <div>
-                    <h5 className="text-sm font-semibold text-error">Dispatch held</h5>
-                    <p className="mt-0.5 text-xs text-fg-muted">
-                      The gate pass releases only once the COA is signed against the finished-goods inspection report.
-                    </p>
-                  </div>
-                </div>
-                <Button variant="primary" disabled className="mt-3 w-full justify-center">
-                  Release gate pass
-                </Button>
-              </>
-            )}
-          </PanelBody>
-        </Panel>
-      </div>
+      </>
     </>
   )
 }

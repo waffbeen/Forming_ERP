@@ -4,10 +4,9 @@ import * as React from 'react'
 import { Check, Minus, Plus, SlidersHorizontal, ToggleLeft, Upload, Users } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Panel, PanelHeader,
-  StackedCell, StatsCard, StatsGrid,
+  Badge, Button, Column, DataTable, StackedCell, StatsCard, StatsGrid,
 } from '@/components/ui'
-import { ModuleModal } from '@/components/modals'
+import { DetailModal, ModuleModal } from '@/components/modals'
 import { MODULES, USERS } from '@/data'
 import { cn } from '@/lib/utils'
 import type { AppModule, PermissionKey, UserRole } from '@/types/masters'
@@ -39,6 +38,7 @@ function grantCount(module: AppModule, role: UserRole) {
 export default function ModuleMasterPage() {
   const [createOpen, setCreateOpen] = React.useState(false)
   const [selectedId, setSelectedId] = React.useState(MODULES[1].moduleId)
+  const [detailOpen, setDetailOpen] = React.useState(false)
   const selected = MODULES.find((m) => m.moduleId === selectedId) ?? MODULES[0]
 
   const enabled = MODULES.filter((m) => m.enabled)
@@ -90,7 +90,7 @@ export default function ModuleMasterPage() {
         <StatsCard label="Active users" value={String(USERS.filter((u) => u.status === 'ACTIVE').length)} note="Inherit their role's rights" icon={Users} />
       </StatsGrid>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+      <>
         <DataTable
           title="Modules"
           rows={MODULES}
@@ -98,72 +98,74 @@ export default function ModuleMasterPage() {
           rowKey={(r) => r.moduleId}
           selectedKey={selected.moduleId}
           onSelect={(r) => setSelectedId(r.moduleId)}
+          onOpen={(r) => { setSelectedId(r.moduleId); setDetailOpen(true) }}
         />
 
-        <Panel>
-          <PanelHeader
-            title="Role permissions"
-            description={<span className="font-mono">{selected.moduleCode} · {selected.route}</span>}
-            action={selected.enabled ? <Badge tone="success">Enabled</Badge> : <Badge tone="muted">Disabled</Badge>}
-          />
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[440px] border-collapse">
-              <thead>
-                <tr>
-                  <th scope="col" className="label-caps border-b border-r border-bd-default bg-bg-grid-header px-3 py-2 text-left">
-                    Role
+        <DetailModal
+          isOpen={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title={selected.moduleName}
+          subtitle={selected.route}
+          badge={selected.enabled ? { label: 'Enabled', tone: 'success' } : { label: 'Disabled', tone: 'muted' }}
+        >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[440px] border-collapse">
+            <thead>
+              <tr>
+                <th scope="col" className="label-caps border-b border-r border-bd-default bg-bg-grid-header px-3 py-2 text-left">
+                  Role
+                </th>
+                {PERMISSIONS.map((p) => (
+                  <th key={p.key} scope="col" className="label-caps border-b border-bd-default bg-bg-grid-header px-2 py-2 text-center">
+                    {p.label}
                   </th>
-                  {PERMISSIONS.map((p) => (
-                    <th key={p.key} scope="col" className="label-caps border-b border-bd-default bg-bg-grid-header px-2 py-2 text-center">
-                      {p.label}
+                ))}
+                <th scope="col" className="label-caps border-b border-bd-default bg-bg-grid-header px-3 py-2 text-right">
+                  Users
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {ROLES.map((role) => {
+                const granted = grantCount(selected, role)
+                return (
+                  <tr key={role} className="border-b border-bd-subtle last:border-b-0">
+                    <th
+                      scope="row"
+                      className={cn(
+                        'border-r border-bd-default px-3 py-1.5 text-left text-sm font-normal',
+                        granted === 0 && 'text-fg-subtle',
+                      )}
+                    >
+                      {ROLE_SHORT[role]}
                     </th>
-                  ))}
-                  <th scope="col" className="label-caps border-b border-bd-default bg-bg-grid-header px-3 py-2 text-right">
-                    Users
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {ROLES.map((role) => {
-                  const granted = grantCount(selected, role)
-                  return (
-                    <tr key={role} className="border-b border-bd-subtle last:border-b-0">
-                      <th
-                        scope="row"
-                        className={cn(
-                          'border-r border-bd-default px-3 py-1.5 text-left text-sm font-normal',
-                          granted === 0 && 'text-fg-subtle',
-                        )}
-                      >
-                        {ROLE_SHORT[role]}
-                      </th>
-                      {PERMISSIONS.map((p) => {
-                        const on = selected.rolePermissions[role][p.key]
-                        return (
-                          <td key={p.key} className="px-2 py-1.5 text-center">
-                            {on ? (
-                              <Check
-                                className="mx-auto h-3.5 w-3.5 text-success"
-                                aria-label={`${ROLE_SHORT[role]} can ${p.label.toLowerCase()}`}
-                              />
-                            ) : (
-                              <Minus
-                                className="mx-auto h-3.5 w-3.5 text-fg-subtle"
-                                aria-label={`${ROLE_SHORT[role]} cannot ${p.label.toLowerCase()}`}
-                              />
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="px-3 py-1.5 text-right font-mono text-sm text-fg-muted">{usersByRole(role)}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      </div>
+                    {PERMISSIONS.map((p) => {
+                      const on = selected.rolePermissions[role][p.key]
+                      return (
+                        <td key={p.key} className="px-2 py-1.5 text-center">
+                          {on ? (
+                            <Check
+                              className="mx-auto h-3.5 w-3.5 text-success"
+                              aria-label={`${ROLE_SHORT[role]} can ${p.label.toLowerCase()}`}
+                            />
+                          ) : (
+                            <Minus
+                              className="mx-auto h-3.5 w-3.5 text-fg-subtle"
+                              aria-label={`${ROLE_SHORT[role]} cannot ${p.label.toLowerCase()}`}
+                            />
+                          )}
+                        </td>
+                      )
+                    })}
+                    <td className="px-3 py-1.5 text-right font-mono text-sm text-fg-muted">{usersByRole(role)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        </DetailModal>
+      </>
 
       <ModuleModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
     </>

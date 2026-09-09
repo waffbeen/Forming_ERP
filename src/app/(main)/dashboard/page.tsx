@@ -64,7 +64,7 @@ export default function DashboardPage() {
         />
       </StatsGrid>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+      <>
         <DataTable
           title="Job cards on the floor"
           rows={JOB_CARDS} columns={columns} rowKey={(r) => r.jobCardId}
@@ -121,7 +121,7 @@ export default function DashboardPage() {
             </PanelBody>
         </Panel>
         </div>
-      </div>
+      </>
     </>
   )
 }

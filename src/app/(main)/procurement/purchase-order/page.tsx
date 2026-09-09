@@ -4,10 +4,9 @@ import * as React from 'react'
 import { IndianRupee, PackageCheck, Plus, ShoppingCart, Truck } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
-  SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
 } from '@/components/ui'
-import { PurchaseOrderModal } from '@/components/modals'
+import { DetailModal, PurchaseOrderModal } from '@/components/modals'
 import { GRNS, ITEMS, PURCHASE_ORDERS, SUPPLIERS } from '@/data'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils'
 import type { PoStatus, PurchaseOrder } from '@/types/procurement'
@@ -50,6 +49,7 @@ export default function PurchaseOrderPage() {
   const [tab, setTab] = React.useState('ALL')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [selectedId, setSelectedId] = React.useState(PURCHASE_ORDERS[0].poId)
+  const [detailOpen, setDetailOpen] = React.useState(false)
 
   const rows = React.useMemo(
     () => (tab === 'ALL' ? PURCHASE_ORDERS : PURCHASE_ORDERS.filter((p) => p.poStatus === tab)),
@@ -120,7 +120,7 @@ export default function PurchaseOrderPage() {
         <StatsCard label="Fully received" value={String(PURCHASE_ORDERS.filter((p) => p.poStatus === 'RECEIVED').length)} note="Closed against GRN" noteTone="good" icon={PackageCheck} />
       </StatsGrid>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <>
         <DataTable
           title="Order book"
           rows={rows}
@@ -130,70 +130,70 @@ export default function PurchaseOrderPage() {
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
           selectedKey={selected.poId}
           onSelect={(r) => setSelectedId(r.poId)}
+          onOpen={(r) => { setSelectedId(r.poId); setDetailOpen(true) }}
         />
 
-        <Panel>
-          <PanelHeader
-            title="Order lines"
-            description={<span className="font-mono">{selected.poNumber}</span>}
-            action={<Badge tone={STATUS_TONE[selected.poStatus]}>{STATUS_LABEL[selected.poStatus]}</Badge>}
+        <DetailModal
+          isOpen={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title={selected.poNumber}
+          subtitle={supplierName(selected.supplierId)}
+          badge={{ label: STATUS_LABEL[selected.poStatus], tone: STATUS_TONE[selected.poStatus] }}
+        >
+          <SpecList
+            rows={[
+              { label: 'Supplier', value: supplierName(selected.supplierId), mono: false },
+              { label: 'Against PR', value: selected.prNumber ?? 'Direct order' },
+              { label: 'Expected', value: formatDate(selected.expectedDate) },
+              { label: 'GST', value: `${selected.gstPercent} %` },
+            ]}
           />
-          <PanelBody>
-            <SpecList
-              rows={[
-                { label: 'Supplier', value: supplierName(selected.supplierId), mono: false },
-                { label: 'Against PR', value: selected.prNumber ?? 'Direct order' },
-                { label: 'Expected', value: formatDate(selected.expectedDate) },
-                { label: 'GST', value: `${selected.gstPercent} %` },
-              ]}
-            />
-            <Divider />
-            <ul className="space-y-2.5">
-              {selected.lines.map((line) => {
-                const item = itemOf(line.itemId)
-                const pending = line.orderedQty - line.receivedQty
-                return (
-                  <li key={line.lineId} className="rounded-md border border-bd-default px-3 py-2.5">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-sm font-medium">{item?.itemName ?? line.itemId}</span>
-                      <span className="shrink-0 font-mono text-sm font-semibold">
-                        {formatCurrency(lineValue(line.orderedQty, line.ratePerUom), 0)}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 font-mono text-xs text-fg-muted">
-                      {formatNumber(line.orderedQty)} {item?.uom} @ {formatCurrency(line.ratePerUom, 0)}
-                      {line.thicknessMicrons ? ` · ${line.thicknessMicrons} µm · ${line.deckleWidthMm} mm deckle` : ''}
-                    </p>
-                    <p className="mt-1 font-mono text-xs">
-                      received {formatNumber(line.receivedQty)}
-                      {pending > 0 ? (
-                        <span className="text-warning"> · {formatNumber(pending)} pending</span>
-                      ) : (
-                        <span className="text-success"> · complete</span>
-                      )}
-                    </p>
-                  </li>
-                )
-              })}
-            </ul>
+          <Divider />
+          <ul className="space-y-2.5">
+            {selected.lines.map((line) => {
+              const item = itemOf(line.itemId)
+              const pending = line.orderedQty - line.receivedQty
+              return (
+                <li key={line.lineId} className="rounded-md border border-bd-default px-3 py-2.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-medium">{item?.itemName ?? line.itemId}</span>
+                    <span className="shrink-0 font-mono text-sm font-semibold">
+                      {formatCurrency(lineValue(line.orderedQty, line.ratePerUom), 0)}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 font-mono text-xs text-fg-muted">
+                    {formatNumber(line.orderedQty)} {item?.uom} @ {formatCurrency(line.ratePerUom, 0)}
+                    {line.thicknessMicrons ? ` · ${line.thicknessMicrons} µm · ${line.deckleWidthMm} mm deckle` : ''}
+                  </p>
+                  <p className="mt-1 font-mono text-xs">
+                    received {formatNumber(line.receivedQty)}
+                    {pending > 0 ? (
+                      <span className="text-warning"> · {formatNumber(pending)} pending</span>
+                    ) : (
+                      <span className="text-success"> · complete</span>
+                    )}
+                  </p>
+                </li>
+              )
+            })}
+          </ul>
 
-            {receipts.length ? (
-              <>
-                <Divider />
-                <p className="label-caps mb-1.5">Receipts against this order</p>
-                <ul className="space-y-1">
-                  {receipts.map((g) => (
-                    <li key={g.grnId} className="flex items-center justify-between font-mono text-xs">
-                      <span>{g.grnNumber}</span>
-                      <span className="text-fg-muted">{formatDate(g.grnDate)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-          </PanelBody>
-        </Panel>
-      </div>
+          {receipts.length ? (
+            <>
+              <Divider />
+              <p className="label-caps mb-1.5">Receipts against this order</p>
+              <ul className="space-y-1">
+                {receipts.map((g) => (
+                  <li key={g.grnId} className="flex items-center justify-between font-mono text-xs">
+                    <span>{g.grnNumber}</span>
+                    <span className="text-fg-muted">{formatDate(g.grnDate)}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </DetailModal>
+      </>
 
       <PurchaseOrderModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
     </>

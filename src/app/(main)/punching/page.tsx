@@ -4,10 +4,9 @@ import * as React from 'react'
 import { Layers, Save, Scissors, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
-  SpecList, StackedCell, StatsCard, StatsGrid,
+  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid,
 } from '@/components/ui'
-import { PunchingEntryModal } from '@/components/modals'
+import { DetailModal, PunchingEntryModal } from '@/components/modals'
 import { ReconciliationBar } from '@/components/forming'
 import { JOB_CARDS, PUNCHING_LOGS } from '@/data'
 import { reconcileJob } from '@/lib/reconcile'
@@ -16,6 +15,7 @@ import type { PunchingLog } from '@/types'
 
 export default function PunchingPage() {
   const [selectedId, setSelectedId] = React.useState(PUNCHING_LOGS[0].punchingLogId)
+  const [detailOpen, setDetailOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
   const selected = PUNCHING_LOGS.find((p) => p.punchingLogId === selectedId) ?? PUNCHING_LOGS[0]
   const job = JOB_CARDS.find((j) => j.jobCardNo === selected.jobCardNo)
@@ -78,7 +78,7 @@ export default function PunchingPage() {
         />
       </StatsGrid>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <>
         <DataTable
           title="Punching run log"
           rows={PUNCHING_LOGS}
@@ -88,46 +88,45 @@ export default function PunchingPage() {
           searchPlaceholder="Search job card or operator"
           selectedKey={selectedId}
           onSelect={(r) => setSelectedId(r.punchingLogId)}
+          onOpen={(r) => { setSelectedId(r.punchingLogId); setDetailOpen(true) }}
         />
 
-        <Panel>
-          <PanelHeader
-            title="Material reconciliation"
-            description={<span className="font-mono">{selected.jobCardNo}</span>}
-            action={<Badge tone={consumedKg > 0 ? 'success' : 'muted'}>{consumedKg > 0 ? 'Balanced' : 'No run yet'}</Badge>}
-          />
-          <PanelBody>
-            {consumedKg > 0 ? (
-              <>
-                <ReconciliationBar goodKg={goodKg} skeletonKg={skeletonKg} rejectKg={rejectKg} />
-                <Divider />
-                <SpecList
-                  rows={[
-                    { label: 'Customer', value: job?.customerName ?? '—', mono: false },
-                    { label: 'Reel consumed at forming', value: formatKg(consumedKg) },
-                    { label: 'Sheets fed', value: formatNumber(selected.inputFormedSheets) },
-                    {
-                      label: 'Pieces off the die',
-                      value: `${formatNumber(totalPieces)} (${formatNumber(selected.inputFormedSheets)} × ${
-                        job ? Math.round(totalPieces / selected.inputFormedSheets) : 12
-                      } ups)`,
-                    },
-                    { label: 'Good pieces', value: formatNumber(selected.goodPiecesOutput), emphasis: true },
-                    { label: 'Rejected pieces', value: formatNumber(selected.rejectedPiecesQty) },
-                    { label: 'Weight per tray', value: `${formatNumber(gramsPerPiece, 2)} g` },
-                    { label: 'Skeleton scrap', value: formatKg(skeletonKg) },
-                  ]}
-                />
-                <Divider />
-              </>
-            ) : (
-              <p className="text-sm text-fg-subtle">
-                This job has not been punched yet. Its line clearance is still unsigned.
-              </p>
-            )}
-          </PanelBody>
-        </Panel>
-      </div>
+        <DetailModal
+          isOpen={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title={selected.jobCardNo}
+          subtitle={job?.customerName ?? ''}
+        >
+          {consumedKg > 0 ? (
+            <>
+              <ReconciliationBar goodKg={goodKg} skeletonKg={skeletonKg} rejectKg={rejectKg} />
+              <Divider />
+              <SpecList
+                rows={[
+                  { label: 'Customer', value: job?.customerName ?? '—', mono: false },
+                  { label: 'Reel consumed at forming', value: formatKg(consumedKg) },
+                  { label: 'Sheets fed', value: formatNumber(selected.inputFormedSheets) },
+                  {
+                    label: 'Pieces off the die',
+                    value: `${formatNumber(totalPieces)} (${formatNumber(selected.inputFormedSheets)} × ${
+                      job ? Math.round(totalPieces / selected.inputFormedSheets) : 12
+                    } ups)`,
+                  },
+                  { label: 'Good pieces', value: formatNumber(selected.goodPiecesOutput), emphasis: true },
+                  { label: 'Rejected pieces', value: formatNumber(selected.rejectedPiecesQty) },
+                  { label: 'Weight per tray', value: `${formatNumber(gramsPerPiece, 2)} g` },
+                  { label: 'Skeleton scrap', value: formatKg(skeletonKg) },
+                ]}
+              />
+              <Divider />
+            </>
+          ) : (
+            <p className="text-sm text-fg-subtle">
+              This job has not been punched yet. Its line clearance is still unsigned.
+            </p>
+          )}
+        </DetailModal>
+      </>
 
       <PunchingEntryModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
     </>

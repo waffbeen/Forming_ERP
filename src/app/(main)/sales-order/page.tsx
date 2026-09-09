@@ -4,10 +4,9 @@ import * as React from 'react'
 import { FileText, Plus, RefreshCw, IndianRupee, CircleDot, Check } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
-  SpecList, StackedCell, StatsCard, StatsGrid, Tabs, TotalRow,
+  Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs, TotalRow,
 } from '@/components/ui'
-import { SalesOrderModal } from '@/components/modals'
+import { DetailModal, SalesOrderModal } from '@/components/modals'
 import { OrderStatusBadge } from '@/lib/shared-ui'
 import { ARTWORKS, MATERIALS, SALES_ORDERS } from '@/data'
 import { DECKLE_MM, PLANT } from '@/config/plant'
@@ -30,6 +29,7 @@ export default function SalesOrderPage() {
   const [tab, setTab] = React.useState('ALL')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [selectedId, setSelectedId] = React.useState(SALES_ORDERS[0].salesOrderId)
+  const [detailOpen, setDetailOpen] = React.useState(false)
 
   const rows = React.useMemo(
     () => (tab === 'ALL' ? SALES_ORDERS : SALES_ORDERS.filter((o) => o.status === tab)),
@@ -138,7 +138,7 @@ export default function SalesOrderPage() {
         />
       </StatsGrid>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.62fr)_minmax(0,1fr)]">
+      <>
         <DataTable
           title="Order queue"
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
@@ -150,96 +150,87 @@ export default function SalesOrderPage() {
           searchPlaceholder="Search SO number, customer, artwork or PO reference"
           selectedKey={selected.salesOrderId}
           onSelect={(r) => setSelectedId(r.salesOrderId)}
+          onOpen={(r) => { setSelectedId(r.salesOrderId); setDetailOpen(true) }}
         />
 
         <div className="flex flex-col gap-3.5">
-          <Panel>
-            <PanelHeader
-              title="Artwork master"
-              description={<span className="font-mono">{selected.artworkCode}</span>}
-              action={
-                artwork?.approved ? (
-                  <Badge tone="success">Drawing approved</Badge>
-                ) : (
-                  <Badge tone="warning">Approval pending</Badge>
-                )
-              }
-            />
-            <PanelBody>
-              {artwork ? (
-                <>
-                  <SpecList
-                    rows={[
-                      { label: 'Customer reference', value: artwork.clientProductRef, mono: false },
-                      { label: 'Client PO', value: selected.clientPoRef },
-                      { label: 'Open layout (expanded)', value: `${artwork.openLengthMm} × ${artwork.openWidthMm} mm` },
-                      { label: 'Formed depth', value: `${artwork.depthMm} mm` },
-                      { label: 'Reel thickness', value: formatMicrons(selected.thicknessMicrons) },
-                      { label: 'Cavity ups per sheet', value: `${nesting?.upsPerSheet ?? 0} ups`, emphasis: true },
-                      { label: 'Drawing', value: artwork.drawingRef },
-                    ]}
-                  />
-                  <Divider />
-                </>
-              ) : (
-                <p className="text-sm text-fg-subtle">No artwork master linked to this order yet.</p>
-              )}
-            </PanelBody>
-        </Panel>
+          <DetailModal
+            isOpen={detailOpen}
+            onClose={() => setDetailOpen(false)}
+            title={selected.soNumber}
+            subtitle={selected.customerName}
+            size="xl"
+          >
+            {artwork ? (
+              <>
+                <SpecList
+                  rows={[
+                    { label: 'Customer reference', value: artwork.clientProductRef, mono: false },
+                    { label: 'Client PO', value: selected.clientPoRef },
+                    { label: 'Open layout (expanded)', value: `${artwork.openLengthMm} × ${artwork.openWidthMm} mm` },
+                    { label: 'Formed depth', value: `${artwork.depthMm} mm` },
+                    { label: 'Reel thickness', value: formatMicrons(selected.thicknessMicrons) },
+                    { label: 'Cavity ups per sheet', value: `${nesting?.upsPerSheet ?? 0} ups`, emphasis: true },
+                    { label: 'Drawing', value: artwork.drawingRef },
+                  ]}
+                />
+                <Divider />
+              </>
+            ) : (
+              <p className="text-sm text-fg-subtle">No artwork master linked to this order yet.</p>
+            )}
 
-          {costing && nesting ? (
-            <Panel>
-              <PanelHeader
-                title="Auto-costing"
-              />
-              <PanelBody>
+            {costing && nesting ? (
+              <>
+                <Divider />
+                <p className="label-caps mb-2">Auto-costing</p>
                 <SpecList
-                  rows={[
-                    { label: 'Sheets required', value: formatNumber(costing.sheets) },
-                    { label: 'Nesting', value: `${nesting.across} across × ${nesting.down} down` },
-                    { label: 'Reel deckle', value: `${DECKLE_MM} mm` },
-                    { label: 'Reel length', value: `${formatNumber(costing.reelLengthM, 1)} m` },
-                    { label: 'Gross reel weight', value: formatKg(costing.grossWeightKg), emphasis: true },
-                    {
-                      label: 'Skeleton allowance',
-                      value: `${formatPercent(nesting.skeletonFraction * 100)} · ${formatKg(costing.skeletonKg)}`,
-                    },
-                    { label: 'Net tray weight', value: `${formatNumber(costing.gramsPerPiece, 2)} g / pc` },
-                  ]}
+                rows={[
+                { label: 'Sheets required', value: formatNumber(costing.sheets) },
+                { label: 'Nesting', value: `${nesting.across} across × ${nesting.down} down` },
+                { label: 'Reel deckle', value: `${DECKLE_MM} mm` },
+                { label: 'Reel length', value: `${formatNumber(costing.reelLengthM, 1)} m` },
+                { label: 'Gross reel weight', value: formatKg(costing.grossWeightKg), emphasis: true },
+                {
+                label: 'Skeleton allowance',
+                value: `${formatPercent(nesting.skeletonFraction * 100)} · ${formatKg(costing.skeletonKg)}`,
+                },
+                { label: 'Net tray weight', value: `${formatNumber(costing.gramsPerPiece, 2)} g / pc` },
+                ]}
                 />
                 <Divider />
                 <SpecList
-                  rows={[
-                    {
-                      label: `${selected.materialType} @ ${formatCurrency(material!.ratePerKg, 0)} / kg`,
-                      value: formatCurrency(costing.materialCost, 0),
-                    },
-                    {
-                      label: `Scrap recovery @ ${formatCurrency(material!.scrapRatePerKg, 0)} / kg`,
-                      value: `− ${formatCurrency(costing.scrapRecovery, 0)}`,
-                    },
-                    { label: 'Conversion @ ₹ 0.85 / pc', value: formatCurrency(costing.conversionCost, 0) },
-                  ]}
+                rows={[
+                {
+                label: `${selected.materialType} @ ${formatCurrency(material!.ratePerKg, 0)} / kg`,
+                value: formatCurrency(costing.materialCost, 0),
+                },
+                {
+                label: `Scrap recovery @ ${formatCurrency(material!.scrapRatePerKg, 0)} / kg`,
+                value: `− ${formatCurrency(costing.scrapRecovery, 0)}`,
+                },
+                { label: 'Conversion @ ₹ 0.85 / pc', value: formatCurrency(costing.conversionCost, 0) },
+                ]}
                 />
                 <Divider />
                 <SpecList
-                  rows={[
-                    { label: 'Quoted rate', value: formatCurrency(selected.ratePerPc) },
-                    {
-                      label: 'Margin',
-                      value: formatPercent(
-                        ((selected.ratePerPc - costing.costPerPiece) / selected.ratePerPc) * 100,
-                      ),
-                    },
-                  ]}
+                rows={[
+                { label: 'Quoted rate', value: formatCurrency(selected.ratePerPc) },
+                {
+                label: 'Margin',
+                value: formatPercent(
+                ((selected.ratePerPc - costing.costPerPiece) / selected.ratePerPc) * 100,
+                ),
+                },
+                ]}
                 />
                 <Divider />
                 <TotalRow label="Landed cost per tray" value={formatCurrency(costing.costPerPiece)} />
-              </PanelBody>
-            </Panel>
-          ) : null}
+              </>
+            ) : null}
+          </DetailModal>
         </div>
-      </div>
+      </>
 
       <SalesOrderModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
     </>

@@ -4,10 +4,9 @@ import * as React from 'react'
 import { Flame, Printer, Scissors, Lock, Plus, Weight } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
-  SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
 } from '@/components/ui'
-import { JobCardModal } from '@/components/modals'
+import { DetailModal, JobCardModal } from '@/components/modals'
 import { NestingDiagram, StageStrip } from '@/components/forming'
 import { ARTWORKS, FORMING_LOGS, JOB_CARDS, MACHINES } from '@/data'
 import { DECKLE_MM, PLANT } from '@/config/plant'
@@ -25,6 +24,7 @@ export default function JobCardPage() {
   const [tab, setTab] = React.useState('ACTIVE')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [selectedId, setSelectedId] = React.useState(JOB_CARDS[0].jobCardId)
+  const [detailOpen, setDetailOpen] = React.useState(false)
 
   const selected = JOB_CARDS.find((j) => j.jobCardId === selectedId) ?? JOB_CARDS[0]
   const artwork = ARTWORKS.find((a) => a.artworkCode === selected.artworkCode)
@@ -111,7 +111,7 @@ export default function JobCardPage() {
         />
       </StatsGrid>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.62fr)_minmax(0,1fr)]">
+      <>
         <DataTable
           title="Job card queue"
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
@@ -123,54 +123,49 @@ export default function JobCardPage() {
           searchPlaceholder="Search job card, SO, artwork or customer"
           selectedKey={selectedId}
           onSelect={(r) => setSelectedId(r.jobCardId)}
+          onOpen={(r) => { setSelectedId(r.jobCardId); setDetailOpen(true) }}
         />
 
-        <Panel>
-          <PanelHeader
-            title="Open layout nesting"
-            description={
-              <span className="font-mono">
-                {selected.jobCardNo} · {DECKLE_MM} mm deckle × {PLANT.bedLengthMm} mm bed
-              </span>
-            }
-            action={<Badge tone="success">{nesting?.upsPerSheet ?? 0} ups</Badge>}
-          />
-          <PanelBody>
-            {artwork && nesting ? (
-              <>
-                <NestingDiagram
-                  openLengthMm={artwork.openLengthMm}
-                  openWidthMm={artwork.openWidthMm}
-                  deckleWidthMm={DECKLE_MM}
-                  bedPitchMm={PLANT.bedLengthMm}
-                  skeletonKg={selected.estTrimWasteKg}
-                />
-                <Divider />
-                <SpecList
-                  rows={[
-                    { label: 'Customer', value: selected.customerName, mono: false },
-                    {
-                      label: 'Reel issued',
-                      value: selected.reelId
-                        ? `${selected.reelId} · ${formatKg(formingLog?.issuedWeightKg ?? 0)}`
-                        : 'Not yet issued',
-                    },
-                    { label: 'Forming machine', value: `${selected.formingMachineCode} · ${PLANT.bedLengthMm} × ${PLANT.bedWidthMm} bed` },
-                    {
-                      label: 'Punching machine',
-                      value: `${selected.punchingMachineCode} · ${punchMachine?.sheetsPerStroke ?? PLANT.sheetsPerStroke} sheets/stroke`,
-                    },
-                    { label: 'Sheet utilisation', value: formatPercent(nesting.utilisation * 100), emphasis: true },
-                    { label: 'Estimated skeleton', value: formatKg(selected.estTrimWasteKg) },
-                  ]}
-                />
-              </>
-            ) : (
-              <p className="text-sm text-fg-subtle">This job card has no approved artwork yet.</p>
-            )}
-          </PanelBody>
-        </Panel>
-      </div>
+        <DetailModal
+          isOpen={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title={selected.jobCardNo}
+          subtitle={selected.customerName}
+        >
+          {artwork && nesting ? (
+            <>
+              <NestingDiagram
+                openLengthMm={artwork.openLengthMm}
+                openWidthMm={artwork.openWidthMm}
+                deckleWidthMm={DECKLE_MM}
+                bedPitchMm={PLANT.bedLengthMm}
+                skeletonKg={selected.estTrimWasteKg}
+              />
+              <Divider />
+              <SpecList
+                rows={[
+                  { label: 'Customer', value: selected.customerName, mono: false },
+                  {
+                    label: 'Reel issued',
+                    value: selected.reelId
+                      ? `${selected.reelId} · ${formatKg(formingLog?.issuedWeightKg ?? 0)}`
+                      : 'Not yet issued',
+                  },
+                  { label: 'Forming machine', value: `${selected.formingMachineCode} · ${PLANT.bedLengthMm} × ${PLANT.bedWidthMm} bed` },
+                  {
+                    label: 'Punching machine',
+                    value: `${selected.punchingMachineCode} · ${punchMachine?.sheetsPerStroke ?? PLANT.sheetsPerStroke} sheets/stroke`,
+                  },
+                  { label: 'Sheet utilisation', value: formatPercent(nesting.utilisation * 100), emphasis: true },
+                  { label: 'Estimated skeleton', value: formatKg(selected.estTrimWasteKg) },
+                ]}
+              />
+            </>
+          ) : (
+            <p className="text-sm text-fg-subtle">This job card has no approved artwork yet.</p>
+          )}
+        </DetailModal>
+      </>
 
       <JobCardModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
     </>

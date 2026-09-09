@@ -1,14 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import { AlertTriangle, ArrowDownUp, IndianRupee, Truck } from 'lucide-react'
 import { PageHeader, Note } from '@/components/layout'
+import { DetailModal } from '@/components/modals'
 import {
-  Badge, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
-  SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Column, DataTable, Divider, SpecList, StackedCell, Tabs,
 } from '@/components/ui'
 import {
-  BINS, ITEMS, STOCK_BALANCES, STOCK_MOVEMENTS, USERS, itemsBelowReorder, onOrderQty, stockOnHand,
+  BINS, ITEMS, STOCK_BALANCES, STOCK_MOVEMENTS, USERS, onOrderQty, stockOnHand,
 } from '@/data'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils'
 import type { Item } from '@/types/masters'
@@ -41,14 +40,11 @@ const userName = (id: string) => USERS.find((u) => u.userId === id)?.userName ??
 export default function InventoryPage() {
   const [tab, setTab] = React.useState('STOCK')
   const [selectedItemId, setSelectedItemId] = React.useState(ITEMS[0].itemId)
+  const [detailOpen, setDetailOpen] = React.useState(false)
 
   const selected = ITEMS.find((i) => i.itemId === selectedItemId) ?? ITEMS[0]
   const selectedBalances = STOCK_BALANCES.filter((b) => b.itemId === selected.itemId)
   const selectedMoves = STOCK_MOVEMENTS.filter((m) => m.itemId === selected.itemId)
-
-  const belowReorder = itemsBelowReorder()
-  const stockValue = ITEMS.reduce((s, i) => s + stockOnHand(i.itemId) * i.ratePerUom, 0)
-  const onOrderValue = ITEMS.reduce((s, i) => s + onOrderQty(i.itemId) * i.ratePerUom, 0)
 
   const itemColumns: Column<Item>[] = [
     { key: 'code', header: 'Item', sortValue: (r) => r.itemCode, render: (r) => <StackedCell top={r.itemCode} bottom={r.itemName} mono /> },
@@ -143,20 +139,7 @@ export default function InventoryPage() {
     <>
       <PageHeader eyebrow="Procurement" title="Inventory" />
 
-      <StatsGrid>
-        <StatsCard label="Stock value" value={formatNumber(stockValue / 100000, 2)} unit="lakh" note={`${ITEMS.length} item codes`} icon={IndianRupee} />
-        <StatsCard label="Movements logged" value={String(STOCK_MOVEMENTS.length)} note="Receipts, issues and returns" icon={ArrowDownUp} />
-        <StatsCard
-          label="Below reorder"
-          value={String(belowReorder.length)}
-          note={belowReorder.map((i) => i.itemCode).slice(0, 2).join(', ') || 'None'}
-          noteTone={belowReorder.length ? 'bad' : 'good'}
-          icon={AlertTriangle}
-        />
-        <StatsCard label="On order" value={formatNumber(onOrderValue / 100000, 2)} unit="lakh" note="Committed, not yet received" icon={Truck} />
-      </StatsGrid>
-
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <>
         {tab === 'STOCK' ? (
           <DataTable
             title="Stock on hand"
@@ -167,6 +150,30 @@ export default function InventoryPage() {
             toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
             selectedKey={selected.itemId}
             onSelect={(r) => setSelectedItemId(r.itemId)}
+          onOpen={(r) => { setSelectedItemId(r.itemId); setDetailOpen(true) }}
+            summary={{
+              code: { type: 'custom', customFn: (rows) => `${rows.length} items` },
+              onhand: {
+                type: 'custom',
+                customFn: (rows) => formatNumber(rows.reduce((s, r) => s + stockOnHand(r.itemId), 0), 1),
+              },
+              onorder: {
+                type: 'custom',
+                customFn: (rows) => formatNumber(rows.reduce((s, r) => s + onOrderQty(r.itemId), 0), 1),
+              },
+              value: {
+                type: 'custom',
+                customFn: (rows) =>
+                  formatCurrency(rows.reduce((s, r) => s + stockOnHand(r.itemId) * r.ratePerUom, 0), 0),
+              },
+              status: {
+                type: 'custom',
+                customFn: (rows) => {
+                  const short = rows.filter((r) => stockOnHand(r.itemId) < r.reorderLevel).length
+                  return short ? `${short} below reorder` : 'All in stock'
+                },
+              },
+            }}
           />
         ) : (
           <DataTable
@@ -176,76 +183,83 @@ export default function InventoryPage() {
             rowKey={(r) => r.movementId}
             mainColumns="date,kind,item,qty"
             toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
+            summary={{
+              date: { type: 'custom', customFn: (rows) => `${rows.length} movements` },
+              qty: {
+                type: 'custom',
+                customFn: (rows) => {
+                  const net = rows.reduce((s, r) => s + r.quantity, 0)
+                  return `${net > 0 ? '+' : ''}${formatNumber(net, 1)} net`
+                },
+              },
+            }}
           />
         )}
 
-        <Panel>
-          <PanelHeader
-            title="Item detail"
-            description={<span className="font-mono">{selected.itemCode}</span>}
-            action={
-              stockOnHand(selected.itemId) < selected.reorderLevel ? (
-                <Badge tone="error">Below reorder</Badge>
-              ) : (
-                <Badge tone="success">In stock</Badge>
-              )
-            }
-          />
-          <PanelBody>
-            <SpecList
-              rows={[
-                { label: 'Item', value: selected.itemName, mono: false },
-                { label: 'On hand', value: `${formatNumber(stockOnHand(selected.itemId), 1)} ${selected.uom}`, emphasis: true },
-                { label: 'Reorder level', value: `${formatNumber(selected.reorderLevel)} ${selected.uom}` },
-                { label: 'On order', value: `${formatNumber(onOrderQty(selected.itemId))} ${selected.uom}` },
-                { label: 'Rate', value: `${formatCurrency(selected.ratePerUom, 2)} / ${selected.uom}` },
-              ]}
-            />
+      </>
 
-            <Divider />
-            <p className="label-caps mb-1.5">Held in</p>
-            {selectedBalances.length ? (
-              <ul className="space-y-1">
-                {selectedBalances.map((b) => (
-                  <li key={b.binId} className="flex items-center justify-between font-mono text-xs">
-                    <span>{binCode(b.binId)}</span>
-                    <span className="font-semibold">{formatNumber(b.quantity, 1)} {selected.uom}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-fg-subtle">No stock in any bin.</p>
-            )}
+      <DetailModal
+        isOpen={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        title={selected.itemName}
+        subtitle={selected.itemCode}
+        badge={
+          stockOnHand(selected.itemId) < selected.reorderLevel
+            ? { label: 'Below reorder', tone: 'error' }
+            : { label: 'In stock', tone: 'success' }
+        }
+      >
+        <SpecList
+          rows={[
+            { label: 'On hand', value: `${formatNumber(stockOnHand(selected.itemId), 1)} ${selected.uom}`, emphasis: true },
+            { label: 'Reorder level', value: `${formatNumber(selected.reorderLevel)} ${selected.uom}` },
+            { label: 'On order', value: `${formatNumber(onOrderQty(selected.itemId))} ${selected.uom}` },
+            { label: 'Rate', value: `${formatCurrency(selected.ratePerUom, 2)} / ${selected.uom}` },
+          ]}
+        />
 
-            <Divider />
-            <p className="label-caps mb-1.5">Recent movements</p>
-            {selectedMoves.length ? (
-              <ul className="space-y-1.5">
-                {selectedMoves.slice(0, 6).map((m) => (
-                  <li key={m.movementId} className="flex items-baseline justify-between gap-2 text-xs">
-                    <span className="min-w-0">
-                      <span className="block truncate">{KIND_LABEL[m.kind]}</span>
-                      <span className="block font-mono text-fg-muted">{m.reference} · {formatDate(m.movedOn)}</span>
-                    </span>
-                    <span className={m.quantity < 0 ? 'shrink-0 font-mono font-semibold text-error' : 'shrink-0 font-mono font-semibold text-success'}>
-                      {m.quantity > 0 ? '+' : ''}
-                      {formatNumber(m.quantity, 1)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-fg-subtle">Nothing has moved yet.</p>
-            )}
+        <Divider />
+        <p className="label-caps mb-1.5">Held in</p>
+        {selectedBalances.length ? (
+          <ul className="space-y-1">
+            {selectedBalances.map((b) => (
+              <li key={b.binId} className="flex items-center justify-between font-mono text-xs">
+                <span>{binCode(b.binId)}</span>
+                <span className="font-semibold">{formatNumber(b.quantity, 1)} {selected.uom}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-fg-subtle">No stock in any bin.</p>
+        )}
 
-            <Divider />
-            <Note>
-              On hand is the running sum of the movements above, not a stored number, so any balance can be explained
-              by the rows behind it.
-            </Note>
-          </PanelBody>
-        </Panel>
-      </div>
+        <Divider />
+        <p className="label-caps mb-1.5">Recent movements</p>
+        {selectedMoves.length ? (
+          <ul className="space-y-1.5">
+            {selectedMoves.slice(0, 8).map((m) => (
+              <li key={m.movementId} className="flex items-baseline justify-between gap-2 text-xs">
+                <span className="min-w-0">
+                  <span className="block truncate">{KIND_LABEL[m.kind]}</span>
+                  <span className="block font-mono text-fg-muted">{m.reference} · {formatDate(m.movedOn)}</span>
+                </span>
+                <span className={m.quantity < 0 ? 'shrink-0 font-mono font-semibold text-error' : 'shrink-0 font-mono font-semibold text-success'}>
+                  {m.quantity > 0 ? '+' : ''}
+                  {formatNumber(m.quantity, 1)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-fg-subtle">Nothing has moved yet.</p>
+        )}
+
+        <Divider />
+        <Note>
+          On hand is the running sum of the movements above, not a stored number, so any balance can be explained by
+          the rows behind it.
+        </Note>
+      </DetailModal>
     </>
   )
 }
