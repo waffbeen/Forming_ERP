@@ -25,6 +25,8 @@ export interface StandardModalProps {
   saveDisabled?: boolean
   /** Extra content on the left of the footer, e.g. a running total. */
   footerNote?: React.ReactNode
+  /** Rendered before Cancel, for step navigation and the like. */
+  footerActions?: React.ReactNode
   showFooter?: boolean
 }
 
@@ -67,11 +69,13 @@ export function StandardModal({
   saving = false,
   saveDisabled = false,
   footerNote,
+  footerActions,
   showFooter = true,
 }: StandardModalProps) {
-  const footerActions = (
+  const footer = (
     <>
       {footerNote ? <div className="mr-auto text-xs text-fg-muted">{footerNote}</div> : null}
+      {footerActions}
       <Button variant="outline" icon={XCircle} onClick={onClose} disabled={saving}>
         {cancelLabel}
       </Button>
@@ -92,7 +96,7 @@ export function StandardModal({
       badge={badge ? { label: badge.label, variant: BADGE_VARIANTS[badge.tone ?? 'primary'] } : undefined}
       size={SIZES[size]}
       showFooter={showFooter}
-      footerActions={footerActions}
+      footerActions={footer}
       ariaDescription={subtitle}
     >
       {children}

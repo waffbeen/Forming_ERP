@@ -6,8 +6,8 @@ import { PageHeader } from '@/components/layout'
 import {
   Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid,
 } from '@/components/ui'
-import { DetailModal, PunchingEntryModal } from '@/components/modals'
-import { ReconciliationBar } from '@/components/forming'
+import { DetailModal } from '@/components/modals'
+import { ProductionRunModal, ReconciliationBar } from '@/components/forming'
 import { JOB_CARDS, PUNCHING_LOGS } from '@/data'
 import { reconcileJob } from '@/lib/reconcile'
 import { formatKg, formatNumber, formatPercent } from '@/lib/utils'
@@ -128,7 +128,7 @@ export default function PunchingPage() {
         </DetailModal>
       </>
 
-      <PunchingEntryModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
+      <ProductionRunModal isOpen={createOpen} onClose={() => setCreateOpen(false)} section="PUNCHING" />
     </>
   )
 }

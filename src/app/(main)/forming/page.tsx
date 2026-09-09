@@ -7,8 +7,8 @@ import {
   Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
   SpecList, StackedCell, StatsCard, StatsGrid,
 } from '@/components/ui'
-import { DetailModal, FormingEntryModal } from '@/components/modals'
-import { SignatureGate, ZoneTemperatures } from '@/components/forming'
+import { DetailModal } from '@/components/modals'
+import { ProductionRunModal, SignatureGate, ZoneTemperatures } from '@/components/forming'
 import { FORMING_LOGS, JOB_CARDS, REELS, ZONE_TEMPERATURES } from '@/data'
 import { FORMING_TEMPERATURE_C } from '@/config/plant'
 import { formatKg, formatNumber } from '@/lib/utils'
@@ -180,7 +180,7 @@ export default function FormingPage() {
         </DetailModal>
       </>
 
-      <FormingEntryModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
+      <ProductionRunModal isOpen={createOpen} onClose={() => setCreateOpen(false)} section="FORMING" />
     </>
   )
 }
