@@ -1,13 +1,13 @@
 import type {
   JobClosure, ProductionEntry, ProductionWorkOrder, ScheduleSlot, WorkflowStage,
 } from '@/types/production'
-import { JOB_CARDS, FORMING_LOGS, PUNCHING_LOGS } from './transactions'
+import { JOB_CARDS, FORMING_LOGS, CUTTING_LOGS } from './transactions'
 import { PROCESSES } from './masters-extended'
 
 const BY = 'Pooja Gupta'
 
 /* A job card yields one work order per machine-bound process step: forming
-   first, then punching. Everything after this point works on work orders, not
+   first, then cutting. Everything after this point works on work orders, not
    on the job card, which is what lets the two steps sit on different machines
    in different shifts. */
 const MACHINE_PROCESSES = PROCESSES.filter((p) => p.machineType !== 'NONE').sort(
@@ -15,13 +15,13 @@ const MACHINE_PROCESSES = PROCESSES.filter((p) => p.machineType !== 'NONE').sort
 )
 
 /** How far each job has actually got, used to place its work orders. */
-const STAGE_BY_JOB: Record<string, { forming: WorkflowStage; punching: WorkflowStage }> = {
-  'JC-2609-124': { forming: 'COMPLETED', punching: 'IN_PRODUCTION' },
-  'JC-2609-123': { forming: 'IN_PRODUCTION', punching: 'SCHEDULED' },
-  'JC-2609-121': { forming: 'CLOSED', punching: 'CLOSED' },
-  'JC-2609-118': { forming: 'SCHEDULED', punching: 'RELEASED_FOR_SCHEDULE' },
-  'JC-2609-116': { forming: 'RELEASED_FOR_SCHEDULE', punching: 'CREATED' },
-  'JC-2609-112': { forming: 'COMPLETED', punching: 'IN_PRODUCTION' },
+const STAGE_BY_JOB: Record<string, { forming: WorkflowStage; cutting: WorkflowStage }> = {
+  'JC-2609-124': { forming: 'COMPLETED', cutting: 'IN_PRODUCTION' },
+  'JC-2609-123': { forming: 'IN_PRODUCTION', cutting: 'SCHEDULED' },
+  'JC-2609-121': { forming: 'CLOSED', cutting: 'CLOSED' },
+  'JC-2609-118': { forming: 'SCHEDULED', cutting: 'RELEASED_FOR_SCHEDULE' },
+  'JC-2609-116': { forming: 'RELEASED_FOR_SCHEDULE', cutting: 'CREATED' },
+  'JC-2609-112': { forming: 'COMPLETED', cutting: 'IN_PRODUCTION' },
 }
 
 const PRIORITY_BY_JOB: Record<string, ProductionWorkOrder['priority']> = {
@@ -34,14 +34,14 @@ let pwoSeq = 200
 export const WORK_ORDERS: ProductionWorkOrder[] = JOB_CARDS.flatMap((job) =>
   MACHINE_PROCESSES.map((process) => {
     const isForming = process.machineType === 'FORMING'
-    const stage = STAGE_BY_JOB[job.jobCardNo]?.[isForming ? 'forming' : 'punching'] ?? 'CREATED'
+    const stage = STAGE_BY_JOB[job.jobCardNo]?.[isForming ? 'forming' : 'cutting'] ?? 'CREATED'
     const released = stage !== 'CREATED'
 
-    // Forming is measured in sheets, punching in the pieces it cuts out.
+    // Forming is measured in sheets, cutting in the pieces it cuts out.
     const targetQty = isForming ? job.requiredSheetsQty : job.targetPiecesQty
     const produced = isForming
       ? (FORMING_LOGS.find((f) => f.jobCardNo === job.jobCardNo)?.outputFormedSheets ?? 0)
-      : (PUNCHING_LOGS.find((p) => p.jobCardNo === job.jobCardNo)?.goodPiecesOutput ?? 0)
+      : (CUTTING_LOGS.find((p) => p.jobCardNo === job.jobCardNo)?.goodPiecesOutput ?? 0)
 
     pwoSeq += 1
 
@@ -86,7 +86,7 @@ const seqByQueue = new Map<string, number>()
 export const SCHEDULE_SLOTS: ScheduleSlot[] = SCHEDULABLE.map((wo, i) => {
   const job = JOB_CARDS.find((j) => j.jobCardNo === wo.jobCardNo)
   const machineCode =
-    wo.machineType === 'FORMING' ? (job?.formingMachineCode ?? 'TF-01') : (job?.punchingMachineCode ?? 'PN-01')
+    wo.machineType === 'FORMING' ? (job?.formingMachineCode ?? 'TF-01') : (job?.cuttingMachineCode ?? 'PN-01')
   const scheduledDate = ['2026-09-08', '2026-09-09', '2026-09-10'][i % 3]
   const shift: ScheduleSlot['shift'] = i % 2 === 0 ? 'A' : 'B'
 
@@ -126,8 +126,8 @@ export const PRODUCTION_ENTRIES: ProductionEntry[] = WORK_ORDERS.filter(
 ).map((wo, i) => {
   const slot = SCHEDULE_SLOTS.find((s) => s.pwoNumber === wo.pwoNumber)
   const rejected =
-    wo.machineType === 'PUNCHING'
-      ? (PUNCHING_LOGS.find((p) => p.jobCardNo === wo.jobCardNo)?.rejectedPiecesQty ?? 0)
+    wo.machineType === 'CUTTING'
+      ? (CUTTING_LOGS.find((p) => p.jobCardNo === wo.jobCardNo)?.rejectedPiecesQty ?? 0)
       : 0
   const process = PROCESSES.find((p) => p.processCode === wo.processCode)
   const planned = process?.standardTimeMins ?? 120
@@ -162,7 +162,7 @@ export const JOB_CLOSURES: JobClosure[] = [
     closedByUserId: 'U02',
     reason: 'COMPLETED',
     orderedQty: 90000,
-    producedQty: PUNCHING_LOGS.find((p) => p.jobCardNo === 'JC-2609-121')?.goodPiecesOutput ?? 0,
+    producedQty: CUTTING_LOGS.find((p) => p.jobCardNo === 'JC-2609-121')?.goodPiecesOutput ?? 0,
     shortfallQty: 0,
     remarks: 'Dispatched in full against SO-2609-029',
     status: 'ACTIVE',
@@ -181,18 +181,6 @@ export function remainingQty(wo: ProductionWorkOrder) {
 /** Share of the target a work order has produced, 0-1. */
 export function completionOf(wo: ProductionWorkOrder) {
   return wo.targetQty > 0 ? Math.min(wo.producedQty / wo.targetQty, 1) : 0
-}
-
-/** Work orders waiting for the planner to release them to scheduling. */
-export function awaitingRelease() {
-  return WORK_ORDERS.filter((w) => !w.isReleasedForSchedule)
-}
-
-/** Released work orders that have not been given a machine slot yet. */
-export function awaitingSchedule() {
-  return WORK_ORDERS.filter(
-    (w) => w.isReleasedForSchedule && !SCHEDULE_SLOTS.some((s) => s.pwoNumber === w.pwoNumber),
-  )
 }
 
 /** Jobs whose every work order is finished but which nobody has closed. */

@@ -12,7 +12,7 @@ export const PLANT = {
   /** Reels are never accepted below this thickness. */
   minMicrons: 180,
   maxMicrons: 1000,
-  /** Semi-automatic double-sided punching: 6 + 6. */
+  /** Semi-automatic double-sided cutting: 6 + 6. */
   sheetsPerStroke: 12,
   /** Heater zones on the forming tunnel, logged per run. */
   heaterZones: 27,
@@ -31,9 +31,11 @@ export const DECKLE_MM = 620
  */
 export const DOCUMENTS = {
   qcForming: 'DP/QC/F-01',
-  qcPunching: 'DP/QC/F-02',
+  qcCutting: 'DP/QC/F-02',
   productionForming: 'DP/PR/F-03',
-  productionPunching: 'DP/PR/F-04',
+  productionCutting: 'DP/PR/F-04',
+  qcSorting: 'DP/QC/F-02',
+  productionSorting: 'DP/PR/F-04',
   sopCutting: 'DF/PRD/SOP-05',
   sopForming: 'DF/PRD/SOP-09',
   dailyProduction: 'DF/PRD/F-01',
@@ -67,7 +69,7 @@ export const FORMING_DEFECTS = [
   'Dimensional Variation',
 ] as const
 
-export const PUNCHING_DEFECTS = [
+export const CUTTING_DEFECTS = [
   'Incomplete Cutting',
   'Over Cutting',
   'Uneven / Rough Edges',
@@ -78,6 +80,22 @@ export const PUNCHING_DEFECTS = [
   'Cut Position Misalignment',
   'Corner Damage',
   'Scratches / Surface Marks',
+] as const
+
+/**
+ * What the sorting table pulls a tray out for. Sorting is the last human look
+ * at the piece before it is bagged, so a reject is booked against a reason and
+ * the reasons add up to the rejection quantity on the cutting record.
+ */
+export const SORTING_REJECT_REASONS = [
+  'Deformed / Warped',
+  'Uneven Edges',
+  'Burr Not Removed',
+  'Cracked / Broken',
+  'Scratches / Surface Marks',
+  'Undersize Depth',
+  'Contamination / Foreign Particle',
+  'Colour Variation',
 ] as const
 
 /**

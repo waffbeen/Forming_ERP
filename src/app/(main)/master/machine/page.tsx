@@ -14,7 +14,7 @@ const columns: Column<Machine>[] = [
     key: 'type', sortValue: (r) => r.type,
     header: 'Stage',
     render: (r) => (
-      <Badge tone={r.type === 'FORMING' ? 'primary' : 'info'}>{r.type === 'FORMING' ? 'Forming' : 'Punching'}</Badge>
+      <Badge tone={r.type === 'FORMING' ? 'primary' : 'info'}>{r.type === 'FORMING' ? 'Forming' : 'Cutting'}</Badge>
     ),
   },
   {
@@ -32,7 +32,7 @@ const columns: Column<Machine>[] = [
     header: 'Sheets / stroke',
     align: 'right',
     render: (r) =>
-      r.type === 'PUNCHING' ? (
+      r.type === 'CUTTING' ? (
         <span className="font-mono">
           {r.sheetsPerStroke} <span className="text-fg-muted">(6 + 6)</span>
         </span>
@@ -60,7 +60,7 @@ const columns: Column<Machine>[] = [
 
 export default function MachineMasterPage() {
   const forming = MACHINES.filter((m) => m.type === 'FORMING')
-  const punching = MACHINES.filter((m) => m.type === 'PUNCHING')
+  const cutting = MACHINES.filter((m) => m.type === 'CUTTING')
 
   return (
     <MasterPage
@@ -69,7 +69,7 @@ export default function MachineMasterPage() {
       stats={[
         { label: 'Machines', value: String(MACHINES.length), note: 'Across both stages', icon: Cog },
         { label: 'Forming lines', value: String(forming.length), note: `All on a ${PLANT.bedLengthMm} × ${PLANT.bedWidthMm} mm bed`, icon: Flame },
-        { label: 'Punching presses', value: String(punching.length), note: `${PLANT.sheetsPerStroke} sheets per stroke`, icon: Scissors },
+        { label: 'Cutting presses', value: String(cutting.length), note: `${PLANT.sheetsPerStroke} sheets per stroke`, icon: Scissors },
         {
           label: 'Under maintenance',
           value: String(MACHINES.filter((m) => m.status === 'MAINTENANCE').length),

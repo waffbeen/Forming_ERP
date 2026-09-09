@@ -1,7 +1,7 @@
-import { FORMING_LOGS, PUNCHING_LOGS } from '@/data'
+import { FORMING_LOGS, CUTTING_LOGS } from '@/data'
 
 export interface Reconciliation {
-  /** Reel weight carried by the sheets that were actually punched. */
+  /** Reel weight carried by the sheets that were actually cut. */
   consumedKg: number
   goodKg: number
   skeletonKg: number
@@ -12,27 +12,27 @@ export interface Reconciliation {
 }
 
 /**
- * Reconciles one job's punched output against the material those sheets
+ * Reconciles one job's cut output against the material those sheets
  * carried.
  *
- * The basis is the punched sheets, not the whole forming run: while punching is
+ * The basis is the cut sheets, not the whole forming run: while cutting is
  * still in progress the press has only consumed part of what forming produced,
  * and reconciling against the full run would show a false shortfall.
  */
 export function reconcileJob(jobCardNo: string): Reconciliation | null {
   const forming = FORMING_LOGS.find((f) => f.jobCardNo === jobCardNo)
-  const punching = PUNCHING_LOGS.find((p) => p.jobCardNo === jobCardNo)
-  if (!forming || !punching || forming.outputFormedSheets === 0 || punching.inputFormedSheets === 0) {
+  const cutting = CUTTING_LOGS.find((p) => p.jobCardNo === jobCardNo)
+  if (!forming || !cutting || forming.outputFormedSheets === 0 || cutting.inputFormedSheets === 0) {
     return null
   }
 
   const gramsPerSheet = (forming.consumedWeightKg * 1000) / forming.outputFormedSheets
-  const consumedKg = (gramsPerSheet * punching.inputFormedSheets) / 1000
+  const consumedKg = (gramsPerSheet * cutting.inputFormedSheets) / 1000
 
-  const piecesAccounted = punching.goodPiecesOutput + punching.rejectedPiecesQty
-  const skeletonKg = punching.skeletonScrapWeightKg
+  const piecesAccounted = cutting.goodPiecesOutput + cutting.rejectedPiecesQty
+  const skeletonKg = cutting.skeletonScrapWeightKg
   const gramsPerPiece = piecesAccounted > 0 ? ((consumedKg - skeletonKg) * 1000) / piecesAccounted : 0
-  const rejectKg = (punching.rejectedPiecesQty * gramsPerPiece) / 1000
+  const rejectKg = (cutting.rejectedPiecesQty * gramsPerPiece) / 1000
   const goodKg = consumedKg - skeletonKg - rejectKg
 
   return {

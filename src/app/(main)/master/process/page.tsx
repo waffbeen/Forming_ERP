@@ -10,7 +10,8 @@ import type { Process, ProcessStage } from '@/types/masters'
 
 const STAGE_TONE: Record<ProcessStage, 'primary' | 'info' | 'success' | 'warning' | 'muted'> = {
   FORMING: 'primary',
-  PUNCHING: 'info',
+  CUTTING: 'info',
+  SORTING: 'info',
   PACKING: 'success',
   QC: 'warning',
   DISPATCH: 'muted',

@@ -14,7 +14,7 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [soNumber, setSoNumber] = React.useState('')
   const [targetQty, setTargetQty] = React.useState('')
   const [formingMachine, setFormingMachine] = React.useState('')
-  const [punchingMachine, setPunchingMachine] = React.useState('')
+  const [cuttingMachine, setCuttingMachine] = React.useState('')
   const [reelId, setReelId] = React.useState('')
   const [saving, setSaving] = React.useState(false)
 
@@ -65,7 +65,7 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const reel = REELS.find((r) => r.reelId === reelId)
   const reelShort = Boolean(reel && costing && reel.netWeightKg < costing.grossWeightKg)
 
-  const canSave = Boolean(soNumber && qtyNum > 0 && formingMachine && punchingMachine)
+  const canSave = Boolean(soNumber && qtyNum > 0 && formingMachine && cuttingMachine)
 
   const handleSave = () => {
     setSaving(true)
@@ -74,7 +74,7 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       setSoNumber('')
       setTargetQty('')
       setFormingMachine('')
-      setPunchingMachine('')
+      setCuttingMachine('')
       setReelId('')
       onClose()
     }, 500)
@@ -146,12 +146,12 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 }))}
               />
               <Select
-                label="Punching machine"
+                label="Cutting machine"
                 required
                 placeholder="Select press"
-                value={punchingMachine}
-                onChange={(e) => setPunchingMachine(e.target.value)}
-                options={MACHINES.filter((m) => m.type === 'PUNCHING').map((m) => ({
+                value={cuttingMachine}
+                onChange={(e) => setCuttingMachine(e.target.value)}
+                options={MACHINES.filter((m) => m.type === 'CUTTING').map((m) => ({
                   value: m.machineCode,
                   label: `${m.machineCode} — ${m.machineName}`,
                 }))}
@@ -199,7 +199,7 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               />
               <DerivedField label="Estimated skeleton" value={costing ? formatKg(costing.skeletonKg) : '—'} />
               <DerivedField
-                label="Punching strokes"
+                label="Cutting strokes"
                 value={costing ? formatNumber(Math.ceil(costing.sheets / PLANT.sheetsPerStroke)) : '—'}
               />
             </FormGrid>

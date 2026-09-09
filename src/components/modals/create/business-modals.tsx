@@ -491,9 +491,9 @@ export function ProcessModal({ isOpen, onClose }: MasterModalProps) {
   const [clearance, setClearance] = React.useState(false)
   const [fpa, setFpa] = React.useState(false)
 
-  /* Forming and punching are gated by SOP; default the flags on when chosen. */
+  /* Forming and cutting are gated by SOP; default the flags on when chosen. */
   React.useEffect(() => {
-    const gated = stage === 'FORMING' || stage === 'PUNCHING'
+    const gated = stage === 'FORMING' || stage === 'CUTTING'
     setClearance(gated)
     setFpa(gated)
     setToolRequired(gated)
@@ -532,7 +532,7 @@ export function ProcessModal({ isOpen, onClose }: MasterModalProps) {
             onChange={(e) => setStage(e.target.value)}
             options={[
               { value: 'FORMING', label: 'Forming' },
-              { value: 'PUNCHING', label: 'Punching' },
+              { value: 'CUTTING', label: 'Cutting' },
               { value: 'PACKING', label: 'Packing' },
               { value: 'QC', label: 'Quality' },
               { value: 'DISPATCH', label: 'Dispatch' },

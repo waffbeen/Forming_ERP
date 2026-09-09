@@ -14,7 +14,7 @@ export interface SignatureLine {
 }
 
 /**
- * The GDP gate. Forming and punching stay locked until QC signs line
+ * The GDP gate. Forming and cutting stay locked until QC signs line
  * clearance and first-piece approval, and signatures seal on save so
  * nothing can be pre- or post-dated for an audit.
  */

@@ -190,7 +190,7 @@ export default function ProductionEntryPage() {
           ) : null}
           <Divider />
           <Note>
-            This is the common ledger across every process. Forming and punching keep their own screens for reel
+            This is the common ledger across every process. Forming and cutting keep their own screens for reel
             weights, counter readings and the QC gates; what they produce rolls up here so remaining quantity on a work
             order is answerable in one place.
           </Note>

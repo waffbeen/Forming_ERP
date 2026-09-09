@@ -9,7 +9,7 @@ import {
 import { StageStrip } from '@/components/forming'
 import { QcStatusBadge } from '@/lib/shared-ui'
 import {
-  FORMING_LOGS, JOB_CARDS, MACHINES, PUNCHING_LOGS, REELS, SALES_ORDERS, SCRAP_ENTRIES,
+  FORMING_LOGS, JOB_CARDS, MACHINES, CUTTING_LOGS, REELS, SALES_ORDERS, SCRAP_ENTRIES,
 } from '@/data'
 import { PLANT } from '@/config/plant'
 import { formatKg, formatNumber, formatPercent } from '@/lib/utils'
@@ -18,7 +18,7 @@ import type { JobCard } from '@/types'
 export default function DashboardPage() {
   const openValue = SALES_ORDERS.reduce((s, o) => s + o.orderQtyPcs * o.ratePerPc, 0)
   const sheetsToday = FORMING_LOGS.reduce((s, f) => s + f.outputFormedSheets, 0)
-  const piecesToday = PUNCHING_LOGS.reduce((s, p) => s + p.goodPiecesOutput, 0)
+  const piecesToday = CUTTING_LOGS.reduce((s, p) => s + p.goodPiecesOutput, 0)
   const consumedKg = FORMING_LOGS.reduce((s, f) => s + f.consumedWeightKg, 0)
   const scrapKg = SCRAP_ENTRIES.reduce((s, e) => s + e.totalKg, 0)
   const blocked = JOB_CARDS.filter((j) => Object.values(j.stages).includes('BLOCKED'))
@@ -28,7 +28,7 @@ export default function DashboardPage() {
     { key: 'jc', header: 'Job card', render: (r) => <StackedCell top={r.jobCardNo} bottom={r.customerName} mono /> },
     { key: 'artwork', header: 'Artwork', render: (r) => <span className="font-mono">{r.artworkCode}</span> },
     { key: 'target', header: 'Target pcs', align: 'right', render: (r) => <span className="font-mono">{formatNumber(r.targetPiecesQty)}</span> },
-    { key: 'machine', header: 'Machine', render: (r) => `${r.formingMachineCode} / ${r.punchingMachineCode}` },
+    { key: 'machine', header: 'Machine', render: (r) => `${r.formingMachineCode} / ${r.cuttingMachineCode}` },
     { key: 'stage', header: 'Stage', render: (r) => <StageStrip stages={r.stages} /> },
   ]
 
@@ -47,7 +47,7 @@ export default function DashboardPage() {
           note={`${SALES_ORDERS.length} orders, ${new Set(SALES_ORDERS.map((o) => o.customerId)).size} customers`}
           icon={Boxes}
         />
-        <StatsCard label="Formed sheets today" value={formatNumber(sheetsToday)} note={`${formatNumber(piecesToday)} trays punched`} icon={Flame} />
+        <StatsCard label="Formed sheets today" value={formatNumber(sheetsToday)} note={`${formatNumber(piecesToday)} trays cut`} icon={Flame} />
         <StatsCard
           label="Reel consumed"
           value={formatNumber(consumedKg, 1)}

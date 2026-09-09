@@ -13,7 +13,7 @@ export type OrderStatus =
   | 'IN_PRODUCTION'
   | 'DISPATCHED'
 
-export type JobStage = 'REEL_ISSUE' | 'FORMING' | 'PUNCHING' | 'PACKING'
+export type JobStage = 'REEL_ISSUE' | 'FORMING' | 'CUTTING' | 'SORTING' | 'PACKING'
 export type StageState = 'DONE' | 'ACTIVE' | 'BLOCKED' | 'PENDING'
 
 export interface Customer {
@@ -74,7 +74,7 @@ export interface Machine {
   machineId: string
   machineCode: string
   machineName: string
-  type: 'FORMING' | 'PUNCHING'
+  type: 'FORMING' | 'CUTTING'
   bedLengthMm: number
   bedWidthMm: number
   sheetsPerStroke: number
@@ -86,7 +86,7 @@ export interface Die {
   dieId: string
   dieCode: string
   artworkCode: string
-  type: 'FORMING' | 'PUNCHING'
+  type: 'FORMING' | 'CUTTING'
   cavities: number
   lastServicedOn: string
   strokesSinceService: number
@@ -132,7 +132,7 @@ export interface JobCard {
   estReelWeightKg: number
   estTrimWasteKg: number
   formingMachineCode: string
-  punchingMachineCode: string
+  cuttingMachineCode: string
   reelId: string | null
   stages: Record<JobStage, StageState>
 }
@@ -153,8 +153,8 @@ export interface FormingLog {
   shift: 'A' | 'B'
 }
 
-export interface PunchingLog {
-  punchingLogId: string
+export interface CuttingLog {
+  cuttingLogId: string
   jobCardNo: string
   lineClearanceSigned: boolean
   inputFormedSheets: number
@@ -164,6 +164,28 @@ export interface PunchingLog {
   skeletonScrapWeightKg: number
   operator: string
   shift: 'A' | 'B'
+}
+
+/**
+ * The sorting table, worked after the press. Every piece the press produced is
+ * either passed or pulled out against a named reason, so the reasons total to
+ * the rejection quantity and nothing leaves the table unaccounted for.
+ */
+export interface SortingLog {
+  sortingLogId: string
+  jobCardNo: string
+  /** Good pieces handed over by cutting. */
+  inputPiecesQty: number
+  sortedPiecesQty: number
+  rejectedPiecesQty: number
+  /** Rejections by reason, from SORTING_REJECT_REASONS. */
+  rejectionByReason: Record<string, number>
+  /** Pieces that passed the table and go forward to packing. */
+  goodPiecesQty: number
+  pendingPiecesQty: number
+  sorter: string
+  shift: 'A' | 'B'
+  completed: boolean
 }
 
 export interface InProcessCheck {

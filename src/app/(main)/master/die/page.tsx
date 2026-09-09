@@ -22,7 +22,7 @@ const columns: Column<Die>[] = [
     key: 'type', sortValue: (r) => r.type,
     header: 'Stage',
     render: (r) => (
-      <Badge tone={r.type === 'FORMING' ? 'primary' : 'info'}>{r.type === 'FORMING' ? 'Forming' : 'Punching'}</Badge>
+      <Badge tone={r.type === 'FORMING' ? 'primary' : 'info'}>{r.type === 'FORMING' ? 'Forming' : 'Cutting'}</Badge>
     ),
   },
   { key: 'cav', sortValue: (r) => r.cavities, header: 'Cavities', align: 'right', render: (r) => <span className="font-mono">{r.cavities}</span> },
@@ -77,7 +77,7 @@ export default function DieMasterPage() {
       title="Dies & Tools"
       entityName="die"
       stats={[
-        { label: 'Dies on record', value: String(DIES.length), note: 'Forming and punching pairs', icon: Stamp },
+        { label: 'Dies on record', value: String(DIES.length), note: 'Forming and cutting pairs', icon: Stamp },
         { label: 'Mounted on machines', value: String(DIES.filter((d) => d.location.includes('mounted')).length), note: 'Rest are in the tool room', icon: Hammer },
         { label: 'Service due', value: String(dueSoon.length), note: 'Within 10 % of interval', noteTone: 'warn', icon: Wrench },
         { label: 'Service overdue', value: String(overdue.length), note: overdue[0] ? `${overdue[0].dieCode} needs the tool room` : 'None', noteTone: 'bad', icon: AlertTriangle },

@@ -1,12 +1,13 @@
 import { cn } from '@/lib/utils'
 import type { JobStage, StageState } from '@/types'
 
-const ORDER: JobStage[] = ['REEL_ISSUE', 'FORMING', 'PUNCHING', 'PACKING']
+const ORDER: JobStage[] = ['REEL_ISSUE', 'FORMING', 'CUTTING', 'SORTING', 'PACKING']
 
 const LABELS: Record<JobStage, string> = {
   REEL_ISSUE: 'Reel issue',
   FORMING: 'Forming',
-  PUNCHING: 'Punching',
+  CUTTING: 'Cutting',
+  SORTING: 'Sorting',
   PACKING: 'Packing',
 }
 
@@ -17,7 +18,7 @@ const STATE_CLASS: Record<StageState, string> = {
   PENDING: 'bg-bd-strong',
 }
 
-/** Four gated steps of a job card, read left to right. */
+/** The gated steps of a job card, read left to right. */
 export function StageStrip({ stages }: { stages: Record<JobStage, StageState> }) {
   return (
     <span className="inline-flex gap-0.5" aria-label="Job stage progress">
@@ -25,7 +26,7 @@ export function StageStrip({ stages }: { stages: Record<JobStage, StageState> })
         <i
           key={stage}
           title={`${LABELS[stage]} — ${stages[stage].toLowerCase()}`}
-          className={cn('h-1.5 w-5 rounded-sm', STATE_CLASS[stages[stage]])}
+          className={cn('h-1.5 w-4 rounded-sm', STATE_CLASS[stages[stage]])}
         />
       ))}
     </span>

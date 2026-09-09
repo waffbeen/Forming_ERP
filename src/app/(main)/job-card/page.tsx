@@ -29,7 +29,7 @@ export default function JobCardPage() {
   const selected = JOB_CARDS.find((j) => j.jobCardId === selectedId) ?? JOB_CARDS[0]
   const artwork = ARTWORKS.find((a) => a.artworkCode === selected.artworkCode)
   const formingLog = FORMING_LOGS.find((f) => f.jobCardNo === selected.jobCardNo)
-  const punchMachine = MACHINES.find((m) => m.machineCode === selected.punchingMachineCode)
+  const cutMachine = MACHINES.find((m) => m.machineCode === selected.cuttingMachineCode)
 
   const nesting = artwork
     ? calculateNesting({
@@ -62,7 +62,7 @@ export default function JobCardPage() {
     { key: 'target', sortValue: (r) => r.targetPiecesQty, header: 'Target pcs', align: 'right', render: (r) => <span className="font-mono">{formatNumber(r.targetPiecesQty)}</span> },
     { key: 'sheets', sortValue: (r) => r.requiredSheetsQty, header: 'Sheets', align: 'right', render: (r) => <span className="font-mono">{formatNumber(r.requiredSheetsQty)}</span> },
     { key: 'kg', sortValue: (r) => r.estReelWeightKg, header: 'Reel kg', align: 'right', render: (r) => <span className="font-mono">{formatNumber(r.estReelWeightKg, 1)}</span> },
-    { key: 'machine', sortValue: (r) => r.formingMachineCode, header: 'Machine', render: (r) => `${r.formingMachineCode} / ${r.punchingMachineCode}` },
+    { key: 'machine', sortValue: (r) => r.formingMachineCode, header: 'Machine', render: (r) => `${r.formingMachineCode} / ${r.cuttingMachineCode}` },
     { key: 'stage', header: 'Stage', render: (r) => <StageStrip stages={r.stages} /> },
   ]
 
@@ -89,8 +89,8 @@ export default function JobCardPage() {
           icon={Flame}
         />
         <StatsCard
-          label="In punching"
-          value={String(JOB_CARDS.filter((j) => j.stages.PUNCHING === 'ACTIVE').length)}
+          label="In cutting"
+          value={String(JOB_CARDS.filter((j) => j.stages.CUTTING === 'ACTIVE').length)}
           note={`${PLANT.sheetsPerStroke} sheets per stroke, double-sided`}
           icon={Scissors}
         />
@@ -153,8 +153,8 @@ export default function JobCardPage() {
                   },
                   { label: 'Forming machine', value: `${selected.formingMachineCode} · ${PLANT.bedLengthMm} × ${PLANT.bedWidthMm} bed` },
                   {
-                    label: 'Punching machine',
-                    value: `${selected.punchingMachineCode} · ${punchMachine?.sheetsPerStroke ?? PLANT.sheetsPerStroke} sheets/stroke`,
+                    label: 'Cutting machine',
+                    value: `${selected.cuttingMachineCode} · ${cutMachine?.sheetsPerStroke ?? PLANT.sheetsPerStroke} sheets/stroke`,
                   },
                   { label: 'Sheet utilisation', value: formatPercent(nesting.utilisation * 100), emphasis: true },
                   { label: 'Estimated skeleton', value: formatKg(selected.estTrimWasteKg) },

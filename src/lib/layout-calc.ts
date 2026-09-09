@@ -147,7 +147,7 @@ export interface CostingInput {
    * Make-ready and process wastage, as a percentage of the run. Sheets are
    * scrapped bringing the heater profile and the die up to temperature, so a
    * job needs more sheets than the piece count alone implies. Forming runs
-   * about 2.5 %, punching about 1 %.
+   * about 2.5 %, cutting about 1 %.
    */
   wastePercent?: number
 }

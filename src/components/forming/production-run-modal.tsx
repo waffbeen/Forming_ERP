@@ -13,7 +13,7 @@ import {
 import { ZoneTemperatures } from './zone-temperatures'
 import {
   DOCUMENTS, FORMING_DEFECTS, FORMING_TEMPERATURE_C, LINE_CLEARANCE_AREAS, PLANT,
-  PUNCHING_DEFECTS,
+  CUTTING_DEFECTS,
 } from '@/config/plant'
 import { EMPLOYEES, JOB_CARDS, USERS, ZONE_TEMPERATURES } from '@/data'
 import { cn, formatNumber } from '@/lib/utils'
@@ -70,9 +70,9 @@ export function ProductionRunModal({
   section: RunSection
 }) {
   const isForming = section === 'FORMING'
-  const parameters = isForming ? FORMING_DEFECTS : PUNCHING_DEFECTS
-  const documentNo = isForming ? DOCUMENTS.productionForming : DOCUMENTS.productionPunching
-  const qcDocumentNo = isForming ? DOCUMENTS.qcForming : DOCUMENTS.qcPunching
+  const parameters = isForming ? FORMING_DEFECTS : CUTTING_DEFECTS
+  const documentNo = isForming ? DOCUMENTS.productionForming : DOCUMENTS.productionCutting
+  const qcDocumentNo = isForming ? DOCUMENTS.qcForming : DOCUMENTS.qcCutting
 
   const [step, setStep] = React.useState(1)
   const [saving, setSaving] = React.useState(false)
@@ -89,7 +89,7 @@ export function ProductionRunModal({
     previousJobCardNo: '',
     previousJobName: '',
     productCode: '',
-    operation: isForming ? 'Forming' : 'Punching / cutting',
+    operation: isForming ? 'Forming' : 'Cutting',
     areasChecked: {},
     operatorName: '',
     operatorSignedAt: null,
@@ -119,7 +119,7 @@ export function ProductionRunModal({
   const [formedSheets, setFormedSheets] = React.useState('')
   const [makeReady, setMakeReady] = React.useState('')
   const [wastageSheets, setWastageSheets] = React.useState('')
-  const [punchQty, setPunchQty] = React.useState('')
+  const [cutQty, setCutQty] = React.useState('')
   const [wasteGrams, setWasteGrams] = React.useState('')
   const [wasteNos, setWasteNos] = React.useState('')
   const [rejectionAfterSorting, setRejectionAfterSorting] = React.useState('')
@@ -165,13 +165,13 @@ export function ProductionRunModal({
   const formedNum = Number(formedSheets) || 0
   const cavityNum = Number(cavities) || 0
   const totalPieces = formedNum * cavityNum
-  const punchNum = Number(punchQty) || 0
+  const cutNum = Number(cutQty) || 0
   const rejectNum = Number(rejectionAfterSorting) || 0
-  const finalFg = Math.max(punchNum - rejectNum, 0)
+  const finalFg = Math.max(cutNum - rejectNum, 0)
   const perBoxNum = Number(perBox) || 0
   const totalBoxes = perBoxNum > 0 ? Math.floor(finalFg / perBoxNum) : 0
 
-  const canSave = started && Boolean(jobEnd) && (isForming ? formedNum > 0 : punchNum > 0)
+  const canSave = started && Boolean(jobEnd) && (isForming ? formedNum > 0 : cutNum > 0)
 
   const handleSave = () => {
     setSaving(true)
@@ -185,7 +185,7 @@ export function ProductionRunModal({
     <StandardModal
       isOpen={isOpen}
       onClose={onClose}
-      title={isForming ? 'Forming Run' : 'Punching / Cutting Run'}
+      title={isForming ? 'Forming Run' : 'Cutting / Cutting Run'}
       subtitle={`${documentNo} · quality checklist ${qcDocumentNo}`}
       badge={
         clearanceDone && fpaDone
@@ -262,7 +262,7 @@ export function ProductionRunModal({
               </>
             ) : (
               <>
-                <DerivedField label="Machine" value={job?.punchingMachineCode ?? '—'} />
+                <DerivedField label="Machine" value={job?.cuttingMachineCode ?? '—'} />
                 <Input label="Remark 1" placeholder="Optional" />
                 <Input label="Remark 2" placeholder="Optional" />
               </>
@@ -512,15 +512,15 @@ export function ProductionRunModal({
             </FormSection>
           ) : (
             <>
-              <FormSection title="Punching output">
+              <FormSection title="Cutting output">
                 <FormGrid cols={3}>
                   <DerivedField label="Formed qty" value={job ? formatNumber(job.requiredSheetsQty) : '—'} />
-                  <Input label="Punch qty" unit="pieces" required type="number" value={punchQty} onChange={(e) => setPunchQty(e.target.value)} />
+                  <Input label="Cut qty" unit="pieces" required type="number" value={cutQty} onChange={(e) => setCutQty(e.target.value)} />
                   <Input label="Waste sheet" unit="grams" type="number" value={wasteGrams} onChange={(e) => setWasteGrams(e.target.value)} />
                   <Input label="Waste in nos" type="number" value={wasteNos} onChange={(e) => setWasteNos(e.target.value)} />
                   <DerivedField
                     label="Per pcs weight"
-                    value={punchNum > 0 && Number(wasteGrams) >= 0 ? `${formatNumber((Number(wasteGrams) || 0) / Math.max(punchNum, 1), 2)} g` : '—'}
+                    value={cutNum > 0 && Number(wasteGrams) >= 0 ? `${formatNumber((Number(wasteGrams) || 0) / Math.max(cutNum, 1), 2)} g` : '—'}
                   />
                 </FormGrid>
               </FormSection>

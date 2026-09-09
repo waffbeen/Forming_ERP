@@ -501,12 +501,12 @@ export function MachineModal({ isOpen, onClose, onCreated, initialName }: Master
   const [spm, setSpm] = React.useState('')
   const [status, setStatus] = React.useState('IDLE')
 
-  const isPunching = type === 'PUNCHING'
+  const isCutting = type === 'CUTTING'
   const throughput = (Number(perStroke) || 0) * (Number(spm) || 0) * 60
 
   React.useEffect(() => {
-    setPerStroke(isPunching ? String(PLANT.sheetsPerStroke) : '1')
-  }, [isPunching])
+    setPerStroke(isCutting ? String(PLANT.sheetsPerStroke) : '1')
+  }, [isCutting])
 
   return (
     <StandardModal
@@ -531,7 +531,7 @@ export function MachineModal({ isOpen, onClose, onCreated, initialName }: Master
             onChange={(e) => setType(e.target.value)}
             options={[
               { value: 'FORMING', label: 'Forming' },
-              { value: 'PUNCHING', label: 'Punching' },
+              { value: 'CUTTING', label: 'Cutting' },
             ]}
           />
           <Select
@@ -556,7 +556,7 @@ export function MachineModal({ isOpen, onClose, onCreated, initialName }: Master
             type="number"
             value={perStroke}
             onChange={(e) => setPerStroke(e.target.value)}
-            helper={isPunching ? 'Double-sided presses run 6 + 6' : 'Forming draws one sheet per stroke'}
+            helper={isCutting ? 'Double-sided presses run 6 + 6' : 'Forming draws one sheet per stroke'}
           />
           <Input label="Strokes per minute" type="number" value={spm} onChange={(e) => setSpm(e.target.value)} />
           <DerivedField label="Sheets per hour" value={throughput > 0 ? formatNumber(throughput) : '—'} emphasis />
@@ -588,10 +588,10 @@ export function DieModal({ isOpen, onClose, onCreated, initialName }: MasterModa
       })
     : null
 
-  /* Punching dies wear far faster than forming dies, so their default
+  /* Cutting dies wear far faster than forming dies, so their default
      interval is a fraction of the forming one. */
   React.useEffect(() => {
-    if (type) setServiceDue(type === 'PUNCHING' ? '8000' : '50000')
+    if (type) setServiceDue(type === 'CUTTING' ? '8000' : '50000')
   }, [type])
 
   return (
@@ -624,7 +624,7 @@ export function DieModal({ isOpen, onClose, onCreated, initialName }: MasterModa
             onChange={(e) => setType(e.target.value)}
             options={[
               { value: 'FORMING', label: 'Forming — heated male and female pair' },
-              { value: 'PUNCHING', label: 'Punching — cutting die' },
+              { value: 'CUTTING', label: 'Cutting — cutting die' },
             ]}
           />
           <Select
@@ -655,7 +655,7 @@ export function DieModal({ isOpen, onClose, onCreated, initialName }: MasterModa
             type="number"
             value={serviceDue}
             onChange={(e) => setServiceDue(e.target.value)}
-            helper={type === 'PUNCHING' ? 'Cutting edges dull quickly' : 'Heated dies hold up far longer'}
+            helper={type === 'CUTTING' ? 'Cutting edges dull quickly' : 'Heated dies hold up far longer'}
           />
           <DerivedField label="Strokes since service" value="0 on a new die" />
         </FormGrid>

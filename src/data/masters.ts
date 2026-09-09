@@ -64,16 +64,16 @@ export const MACHINES: Machine[] = [
   { machineId: 'MC1', machineCode: 'TF-01', machineName: 'Forming Line 1', type: 'FORMING', bedLengthMm: 600, bedWidthMm: 600, sheetsPerStroke: 1, strokesPerMin: 18, status: 'RUNNING' },
   { machineId: 'MC2', machineCode: 'TF-02', machineName: 'Forming Line 2', type: 'FORMING', bedLengthMm: 600, bedWidthMm: 600, sheetsPerStroke: 1, strokesPerMin: 16, status: 'IDLE' },
   { machineId: 'MC3', machineCode: 'TF-03', machineName: 'Forming Line 3, deep draw', type: 'FORMING', bedLengthMm: 600, bedWidthMm: 600, sheetsPerStroke: 1, strokesPerMin: 12, status: 'MAINTENANCE' },
-  { machineId: 'MC4', machineCode: 'PN-01', machineName: 'Punching Press 1', type: 'PUNCHING', bedLengthMm: 640, bedWidthMm: 640, sheetsPerStroke: 12, strokesPerMin: 24, status: 'RUNNING' },
-  { machineId: 'MC5', machineCode: 'PN-02', machineName: 'Punching Press 2', type: 'PUNCHING', bedLengthMm: 640, bedWidthMm: 640, sheetsPerStroke: 12, strokesPerMin: 27, status: 'RUNNING' },
+  { machineId: 'MC4', machineCode: 'PN-01', machineName: 'Cutting Press 1', type: 'CUTTING', bedLengthMm: 640, bedWidthMm: 640, sheetsPerStroke: 12, strokesPerMin: 24, status: 'RUNNING' },
+  { machineId: 'MC5', machineCode: 'PN-02', machineName: 'Cutting Press 2', type: 'CUTTING', bedLengthMm: 640, bedWidthMm: 640, sheetsPerStroke: 12, strokesPerMin: 27, status: 'RUNNING' },
 ]
 
 export const DIES: Die[] = [
   { dieId: 'D01', dieCode: 'FD-0312', artworkCode: 'AW-PVC-0312', type: 'FORMING', cavities: 12, lastServicedOn: '2026-08-14', strokesSinceService: 41820, serviceDueAt: 50000, location: 'Tool Room, Bay 2' },
-  { dieId: 'D02', dieCode: 'PD-0312', artworkCode: 'AW-PVC-0312', type: 'PUNCHING', cavities: 12, lastServicedOn: '2026-08-14', strokesSinceService: 3610, serviceDueAt: 8000, location: 'PN-02 mounted' },
+  { dieId: 'D02', dieCode: 'PD-0312', artworkCode: 'AW-PVC-0312', type: 'CUTTING', cavities: 12, lastServicedOn: '2026-08-14', strokesSinceService: 3610, serviceDueAt: 8000, location: 'PN-02 mounted' },
   { dieId: 'D03', dieCode: 'FD-0288', artworkCode: 'AW-PVC-0288', type: 'FORMING', cavities: 16, lastServicedOn: '2026-07-30', strokesSinceService: 48400, serviceDueAt: 50000, location: 'Tool Room, Bay 1' },
   { dieId: 'D04', dieCode: 'FD-0104', artworkCode: 'AW-HIP-0104', type: 'FORMING', cavities: 12, lastServicedOn: '2026-09-01', strokesSinceService: 12140, serviceDueAt: 50000, location: 'TF-02 mounted' },
-  { dieId: 'D05', dieCode: 'PD-0104', artworkCode: 'AW-HIP-0104', type: 'PUNCHING', cavities: 12, lastServicedOn: '2026-09-01', strokesSinceService: 1020, serviceDueAt: 8000, location: 'PN-01 mounted' },
+  { dieId: 'D05', dieCode: 'PD-0104', artworkCode: 'AW-HIP-0104', type: 'CUTTING', cavities: 12, lastServicedOn: '2026-09-01', strokesSinceService: 1020, serviceDueAt: 8000, location: 'PN-01 mounted' },
   { dieId: 'D06', dieCode: 'FD-0295', artworkCode: 'AW-PVC-0295', type: 'FORMING', cavities: 6, lastServicedOn: '2026-06-22', strokesSinceService: 49950, serviceDueAt: 50000, location: 'Tool Room, Bay 3' },
   { dieId: 'D07', dieCode: 'FD-0098', artworkCode: 'AW-HIP-0098', type: 'FORMING', cavities: 24, lastServicedOn: '2026-08-28', strokesSinceService: 22300, serviceDueAt: 50000, location: 'TF-01 mounted' },
 ]

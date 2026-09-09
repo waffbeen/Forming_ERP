@@ -1,7 +1,8 @@
 export { SalesOrderModal } from './sales-order-modal'
 export { JobCardModal } from './job-card-modal'
 export { FormingEntryModal } from './forming-entry-modal'
-export { PunchingEntryModal } from './punching-entry-modal'
+export { CuttingEntryModal } from './cutting-entry-modal'
+export { SortingEntryModal } from './sorting-entry-modal'
 
 // Production and client masters
 export {

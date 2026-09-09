@@ -10,10 +10,10 @@ import {
 import { DefectChecklist, MicronMeter, SignatureGate } from '@/components/forming'
 import { QcStatusBadge } from '@/lib/shared-ui'
 import {
-  COAS, FORMING_DEFECT_CHECKS, IN_PROCESS_CHECKS, JOB_CARDS, PUNCHING_DEFECT_CHECKS, REELS,
+  COAS, FORMING_DEFECT_CHECKS, IN_PROCESS_CHECKS, JOB_CARDS, CUTTING_DEFECT_CHECKS, REELS,
 } from '@/data'
 import {
-  DOCUMENTS, FORMING_DEFECTS, LINE_CLEARANCE_AREAS, PLANT, PUNCHING_DEFECTS,
+  DOCUMENTS, FORMING_DEFECTS, LINE_CLEARANCE_AREAS, PLANT, CUTTING_DEFECTS,
 } from '@/config/plant'
 import { formatMicrons, formatNumber } from '@/lib/utils'
 import type { Coa, InProcessCheck, Reel } from '@/types'
@@ -203,19 +203,19 @@ export default function QualityPage() {
 
           <Panel>
             <PanelHeader
-              title="Punching section, in-process checklist"
+              title="Cutting section, in-process checklist"
               description={
                 <span className="font-mono">
-                  {DOCUMENTS.qcPunching} · JC-2609-124 · Vadilal Industries
+                  {DOCUMENTS.qcCutting} · JC-2609-124 · Vadilal Industries
                 </span>
               }
               action={<Badge tone="warning">1 defect logged</Badge>}
             />
             <DefectChecklist
-              defects={PUNCHING_DEFECTS}
-              checks={PUNCHING_DEFECT_CHECKS}
-              documentNo={DOCUMENTS.qcPunching}
-              section="Punching"
+              defects={CUTTING_DEFECTS}
+              checks={CUTTING_DEFECT_CHECKS}
+              documentNo={DOCUMENTS.qcCutting}
+              section="Cutting"
             />
         </Panel>
         </div>

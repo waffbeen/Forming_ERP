@@ -1,5 +1,6 @@
 import type {
-  Coa, FormingLog, InProcessCheck, JobCard, PackingRecord, PunchingLog, SalesOrder, ScrapEntry,
+  Coa, CuttingLog, FormingLog, InProcessCheck, JobCard, PackingRecord, SalesOrder,
+  ScrapEntry, SortingLog,
 } from '@/types'
 import { calculateCosting, calculateNesting, calculateReelWeight } from '@/lib/layout-calc'
 import { DECKLE_MM, PLANT } from '@/config/plant'
@@ -23,43 +24,43 @@ const JOB_CARD_PLANS: JobCardPlan[] = [
     jobCardId: 'J01', jobCardNo: 'JC-2609-124', soNumber: 'SO-2609-041', artworkCode: 'AW-PVC-0312',
     customerName: 'Vadilal Industries', materialType: 'PVC', thicknessMicrons: 300,
     targetPiecesQty: 25000,
-    formingMachineCode: 'TF-01', punchingMachineCode: 'PN-02', reelId: 'RL-9241',
-    stages: { REEL_ISSUE: 'DONE', FORMING: 'DONE', PUNCHING: 'ACTIVE', PACKING: 'PENDING' },
+    formingMachineCode: 'TF-01', cuttingMachineCode: 'PN-02', reelId: 'RL-9241',
+    stages: { REEL_ISSUE: 'DONE', FORMING: 'DONE', CUTTING: 'DONE', SORTING: 'DONE', PACKING: 'ACTIVE' },
   },
   {
     jobCardId: 'J02', jobCardNo: 'JC-2609-123', soNumber: 'SO-2609-038', artworkCode: 'AW-HIP-0104',
     customerName: 'Britannia Industries', materialType: 'HIPS', thicknessMicrons: 350,
     targetPiecesQty: 40000,
-    formingMachineCode: 'TF-02', punchingMachineCode: 'PN-01', reelId: 'RL-9244',
-    stages: { REEL_ISSUE: 'DONE', FORMING: 'ACTIVE', PUNCHING: 'PENDING', PACKING: 'PENDING' },
+    formingMachineCode: 'TF-02', cuttingMachineCode: 'PN-01', reelId: 'RL-9244',
+    stages: { REEL_ISSUE: 'DONE', FORMING: 'ACTIVE', CUTTING: 'PENDING', SORTING: 'PENDING', PACKING: 'PENDING' },
   },
   {
     jobCardId: 'J03', jobCardNo: 'JC-2609-121', soNumber: 'SO-2609-029', artworkCode: 'AW-HIP-0098',
     customerName: 'Mother Dairy', materialType: 'HIPS', thicknessMicrons: 280,
     targetPiecesQty: 90000,
-    formingMachineCode: 'TF-01', punchingMachineCode: 'PN-02', reelId: 'RL-9253',
-    stages: { REEL_ISSUE: 'DONE', FORMING: 'DONE', PUNCHING: 'DONE', PACKING: 'ACTIVE' },
+    formingMachineCode: 'TF-01', cuttingMachineCode: 'PN-02', reelId: 'RL-9253',
+    stages: { REEL_ISSUE: 'DONE', FORMING: 'DONE', CUTTING: 'DONE', SORTING: 'DONE', PACKING: 'ACTIVE' },
   },
   {
     jobCardId: 'J04', jobCardNo: 'JC-2609-118', soNumber: 'SO-2609-035', artworkCode: 'AW-PVC-0295',
     customerName: 'Zydus Lifesciences', materialType: 'PVC', thicknessMicrons: 500,
     targetPiecesQty: 32000,
-    formingMachineCode: 'TF-02', punchingMachineCode: 'PN-01', reelId: 'RL-9251',
-    stages: { REEL_ISSUE: 'DONE', FORMING: 'BLOCKED', PUNCHING: 'PENDING', PACKING: 'PENDING' },
+    formingMachineCode: 'TF-02', cuttingMachineCode: 'PN-01', reelId: 'RL-9251',
+    stages: { REEL_ISSUE: 'DONE', FORMING: 'BLOCKED', CUTTING: 'PENDING', SORTING: 'PENDING', PACKING: 'PENDING' },
   },
   {
     jobCardId: 'J05', jobCardNo: 'JC-2609-116', soNumber: 'SO-2609-040', artworkCode: 'AW-PVC-0288',
     customerName: 'Cipla Ltd', materialType: 'PVC', thicknessMicrons: 450,
     targetPiecesQty: 60000,
-    formingMachineCode: 'TF-01', punchingMachineCode: 'PN-02', reelId: null,
-    stages: { REEL_ISSUE: 'ACTIVE', FORMING: 'PENDING', PUNCHING: 'PENDING', PACKING: 'PENDING' },
+    formingMachineCode: 'TF-01', cuttingMachineCode: 'PN-02', reelId: null,
+    stages: { REEL_ISSUE: 'ACTIVE', FORMING: 'PENDING', CUTTING: 'PENDING', SORTING: 'PENDING', PACKING: 'PENDING' },
   },
   {
     jobCardId: 'J06', jobCardNo: 'JC-2609-112', soNumber: 'SO-2609-033', artworkCode: 'AW-PP-0067',
     customerName: 'Parle Products', materialType: 'PP', thicknessMicrons: 400,
     targetPiecesQty: 75000,
-    formingMachineCode: 'TF-02', punchingMachineCode: 'PN-01', reelId: 'RL-9256',
-    stages: { REEL_ISSUE: 'DONE', FORMING: 'DONE', PUNCHING: 'ACTIVE', PACKING: 'PENDING' },
+    formingMachineCode: 'TF-02', cuttingMachineCode: 'PN-01', reelId: 'RL-9256',
+    stages: { REEL_ISSUE: 'DONE', FORMING: 'DONE', CUTTING: 'ACTIVE', SORTING: 'ACTIVE', PACKING: 'PENDING' },
   },
 ]
 
@@ -130,10 +131,14 @@ interface RunActuals {
   lineClearanceSigned: boolean
   firstPieceQc: 'PENDING' | 'APPROVED' | 'REJECTED'
   /** Sheets fed into the press so far, and the pieces set aside at it. */
-  sheetsPunched?: number
+  sheetsCut?: number
   rejectedPieces?: number
-  punchOperator?: string
-  punchClearanceSigned?: boolean
+  cutOperator?: string
+  cutClearanceSigned?: boolean
+  /** Sorting table: who worked it, what came off, and what is still queued. */
+  sorter?: string
+  sortRejects?: Record<string, number>
+  unsortedPieces?: number
 }
 
 const RUNS: RunActuals[] = [
@@ -141,7 +146,9 @@ const RUNS: RunActuals[] = [
     jobCardNo: 'JC-2609-124', reelId: 'RL-9241', issuedWeightKg: 340.0,
     sheetsFormed: 2104, startCounterReading: 184220,
     operator: 'Anil Kadam', shift: 'A', lineClearanceSigned: true, firstPieceQc: 'APPROVED',
-    sheetsPunched: 2104, rejectedPieces: 240, punchOperator: 'Dattatray More', punchClearanceSigned: true,
+    sheetsCut: 2104, rejectedPieces: 240, cutOperator: 'Dattatray More', cutClearanceSigned: true,
+    sorter: 'Kavita Jadhav', unsortedPieces: 0,
+    sortRejects: { 'Deformed / Warped': 86, 'Uneven Edges': 41, 'Scratches / Surface Marks': 27 },
   },
   {
     jobCardNo: 'JC-2609-123', reelId: 'RL-9244', issuedWeightKg: 480.0,
@@ -152,19 +159,23 @@ const RUNS: RunActuals[] = [
     jobCardNo: 'JC-2609-121', reelId: 'RL-9253', issuedWeightKg: 610.0,
     sheetsFormed: 3062, startCounterReading: 186324,
     operator: 'Anil Kadam', shift: 'A', lineClearanceSigned: true, firstPieceQc: 'APPROVED',
-    sheetsPunched: 3062, rejectedPieces: 612, punchOperator: 'Dattatray More', punchClearanceSigned: true,
+    sheetsCut: 3062, rejectedPieces: 612, cutOperator: 'Dattatray More', cutClearanceSigned: true,
+    sorter: 'Nilam Bhoir', unsortedPieces: 0,
+    sortRejects: { 'Deformed / Warped': 148, 'Burr Not Removed': 62, 'Colour Variation': 35, 'Cracked / Broken': 21 },
   },
   {
     jobCardNo: 'JC-2609-118', reelId: 'RL-9251', issuedWeightKg: 520.0,
     sheetsFormed: 0, startCounterReading: 0,
     operator: 'Ramesh Patil', shift: 'B', lineClearanceSigned: false, firstPieceQc: 'PENDING',
-    sheetsPunched: 0, rejectedPieces: 0, punchOperator: 'Dattatray More', punchClearanceSigned: false,
+    sheetsCut: 0, rejectedPieces: 0, cutOperator: 'Dattatray More', cutClearanceSigned: false,
   },
   {
     jobCardNo: 'JC-2609-112', reelId: 'RL-9256', issuedWeightKg: 900.0,
     sheetsFormed: 6390, startCounterReading: 92902,
     operator: 'Ramesh Patil', shift: 'B', lineClearanceSigned: true, firstPieceQc: 'APPROVED',
-    sheetsPunched: 3312, rejectedPieces: 324, punchOperator: 'Dattatray More', punchClearanceSigned: true,
+    sheetsCut: 3312, rejectedPieces: 324, cutOperator: 'Dattatray More', cutClearanceSigned: true,
+    sorter: 'Kavita Jadhav', unsortedPieces: 9800,
+    sortRejects: { 'Uneven Edges': 74, 'Undersize Depth': 33 },
   },
 ]
 
@@ -216,30 +227,60 @@ export const FORMING_LOGS: FormingLog[] = RUNS.map((run, i) => {
   }
 })
 
-export const PUNCHING_LOGS: PunchingLog[] = RUNS.filter(
-  (r) => r.sheetsPunched !== undefined,
+export const CUTTING_LOGS: CuttingLog[] = RUNS.filter(
+  (r) => r.sheetsCut !== undefined,
 ).map((run, i) => {
   const nesting = jobNesting(run.jobCardNo)
-  const sheets = run.sheetsPunched ?? 0
+  const sheets = run.sheetsCut ?? 0
   const ups = nesting?.upsPerSheet ?? 0
   const rejects = run.rejectedPieces ?? 0
   // Every piece off the die is either good or rejected; nothing vanishes.
   const good = Math.max(sheets * ups - rejects, 0)
   // Skeleton is the trim share of the material those sheets carried.
-  const punchedKg = (sheets * sheetWeightG(run.jobCardNo)) / 1000
+  const cutKg = (sheets * sheetWeightG(run.jobCardNo)) / 1000
   return {
-    punchingLogId: `P0${i + 1}`,
+    cuttingLogId: `P0${i + 1}`,
     jobCardNo: run.jobCardNo,
-    lineClearanceSigned: run.punchClearanceSigned ?? false,
+    lineClearanceSigned: run.cutClearanceSigned ?? false,
     inputFormedSheets: sheets,
     sheetsPerStroke: PLANT.sheetsPerStroke,
     goodPiecesOutput: good,
     rejectedPiecesQty: rejects,
-    skeletonScrapWeightKg: round1(punchedKg * (nesting?.skeletonFraction ?? 0)),
-    operator: run.punchOperator ?? '—',
+    skeletonScrapWeightKg: round1(cutKg * (nesting?.skeletonFraction ?? 0)),
+    operator: run.cutOperator ?? '—',
     shift: run.shift,
   }
 })
+
+/**
+ * The sorting table. Every piece the press passed is either sorted good or
+ * pulled out against a named reason; what has not been through the table yet
+ * stays visible as pending rather than quietly counting as good.
+ */
+export const SORTING_LOGS: SortingLog[] = RUNS.filter((r) => r.sorter !== undefined).map(
+  (run, i) => {
+    const cut = CUTTING_LOGS.find((c) => c.jobCardNo === run.jobCardNo)
+    const input = cut?.goodPiecesOutput ?? 0
+    const pending = Math.min(run.unsortedPieces ?? 0, input)
+    const sorted = input - pending
+    const byReason = run.sortRejects ?? {}
+    const rejected = Object.values(byReason).reduce((sum, n) => sum + n, 0)
+
+    return {
+      sortingLogId: `SR0${i + 1}`,
+      jobCardNo: run.jobCardNo,
+      inputPiecesQty: input,
+      sortedPiecesQty: sorted,
+      rejectedPiecesQty: rejected,
+      rejectionByReason: byReason,
+      goodPiecesQty: Math.max(sorted - rejected, 0),
+      pendingPiecesQty: pending,
+      sorter: run.sorter ?? '—',
+      shift: run.shift,
+      completed: pending === 0,
+    }
+  },
+)
 
 export const IN_PROCESS_CHECKS: InProcessCheck[] = [
   { checkId: 'Q01', jobCardNo: 'JC-2609-124', time: '08:00', inspector: 'Sunita Rane', thicknessMicrons: 301, visualClarity: 'PASS', result: 'PASSED' },
@@ -266,14 +307,16 @@ function packedFrom(
   piecesPerCarton: number,
   fgReport: PackingRecord['fgReport'],
 ): PackingRecord {
-  const punched = PUNCHING_LOGS.find((p) => p.jobCardNo === jobCardNo)
-  const good = punched?.goodPiecesOutput ?? 0
+  const cut = CUTTING_LOGS.find((p) => p.jobCardNo === jobCardNo)
+  const sorting = SORTING_LOGS.find((p) => p.jobCardNo === jobCardNo)
+  // Only what the sorting table passed is finished goods.
+  const good = sorting?.goodPiecesQty ?? cut?.goodPiecesOutput ?? 0
   return {
     packingId,
     jobCardNo,
     customerName,
     goodPiecesQty: good,
-    rejectedPiecesQty: punched?.rejectedPiecesQty ?? 0,
+    rejectedPiecesQty: (cut?.rejectedPiecesQty ?? 0) + (sorting?.rejectedPiecesQty ?? 0),
     piecesPerCarton,
     cartons: Math.floor(good / piecesPerCarton),
     loosePieces: good % piecesPerCarton,
@@ -292,7 +335,7 @@ export const PACKING_RECORDS: PackingRecord[] = [
 /**
  * Scrap booked against a job is the skeleton the press actually produced plus
  * the weight of the trays it rejected, so the recycling register and the
- * punching log can never disagree.
+ * cutting log can never disagree.
  */
 function scrapFrom(
   scrapId: string,
@@ -302,15 +345,17 @@ function scrapFrom(
   date: string,
 ): ScrapEntry {
   const job = JOB_CARDS.find((j) => j.jobCardNo === jobCardNo)
-  const punched = PUNCHING_LOGS.find((p) => p.jobCardNo === jobCardNo)
+  const cut = CUTTING_LOGS.find((p) => p.jobCardNo === jobCardNo)
   const nesting = jobNesting(jobCardNo)
 
-  const skeletonKg = punched?.skeletonScrapWeightKg ?? 0
+  const skeletonKg = cut?.skeletonScrapWeightKg ?? 0
   const gramsPerPiece =
     nesting && nesting.upsPerSheet > 0
       ? (sheetWeightG(jobCardNo) * nesting.utilisation) / nesting.upsPerSheet
       : 0
-  const rejectKg = round1(((punched?.rejectedPiecesQty ?? 0) * gramsPerPiece) / 1000)
+  const sorting = SORTING_LOGS.find((p) => p.jobCardNo === jobCardNo)
+  const rejectedPieces = (cut?.rejectedPiecesQty ?? 0) + (sorting?.rejectedPiecesQty ?? 0)
+  const rejectKg = round1((rejectedPieces * gramsPerPiece) / 1000)
 
   return {
     scrapId,

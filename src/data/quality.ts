@@ -1,5 +1,5 @@
 import type { DefectCheck, DefectResult } from '@/components/forming/defect-checklist'
-import { FORMING_DEFECTS, PUNCHING_DEFECTS } from '@/config/plant'
+import { FORMING_DEFECTS, CUTTING_DEFECTS } from '@/config/plant'
 
 /** Everything passes unless the run below says otherwise. */
 function allOk(defects: readonly string[], defectsFound: string[] = []) {
@@ -34,18 +34,18 @@ export const FORMING_DEFECT_CHECKS: DefectCheck[] = [
   { id: '9', time: '—', inspector: '', results: notChecked(FORMING_DEFECTS) },
 ]
 
-/** Punching in-process checks for JC-2609-124, format DP/QC/F-02. */
-export const PUNCHING_DEFECT_CHECKS: DefectCheck[] = [
-  { id: 'FPA', time: '13:10', inspector: 'Meera Shinde', results: allOk(PUNCHING_DEFECTS) },
-  { id: '1', time: '13:30', inspector: 'Meera Shinde', results: allOk(PUNCHING_DEFECTS) },
-  { id: '2', time: '14:30', inspector: 'Meera Shinde', results: allOk(PUNCHING_DEFECTS, ['Burr Formation']) },
-  { id: '3', time: '15:30', inspector: 'Meera Shinde', results: allOk(PUNCHING_DEFECTS) },
-  { id: '4', time: '16:30', inspector: 'Meera Shinde', results: allOk(PUNCHING_DEFECTS) },
-  { id: '5', time: '—', inspector: '', results: notChecked(PUNCHING_DEFECTS) },
-  { id: '6', time: '—', inspector: '', results: notChecked(PUNCHING_DEFECTS) },
-  { id: '7', time: '—', inspector: '', results: notChecked(PUNCHING_DEFECTS) },
-  { id: '8', time: '—', inspector: '', results: notChecked(PUNCHING_DEFECTS) },
-  { id: '9', time: '—', inspector: '', results: notChecked(PUNCHING_DEFECTS) },
+/** Cutting in-process checks for JC-2609-124, format DP/QC/F-02. */
+export const CUTTING_DEFECT_CHECKS: DefectCheck[] = [
+  { id: 'FPA', time: '13:10', inspector: 'Meera Shinde', results: allOk(CUTTING_DEFECTS) },
+  { id: '1', time: '13:30', inspector: 'Meera Shinde', results: allOk(CUTTING_DEFECTS) },
+  { id: '2', time: '14:30', inspector: 'Meera Shinde', results: allOk(CUTTING_DEFECTS, ['Burr Formation']) },
+  { id: '3', time: '15:30', inspector: 'Meera Shinde', results: allOk(CUTTING_DEFECTS) },
+  { id: '4', time: '16:30', inspector: 'Meera Shinde', results: allOk(CUTTING_DEFECTS) },
+  { id: '5', time: '—', inspector: '', results: notChecked(CUTTING_DEFECTS) },
+  { id: '6', time: '—', inspector: '', results: notChecked(CUTTING_DEFECTS) },
+  { id: '7', time: '—', inspector: '', results: notChecked(CUTTING_DEFECTS) },
+  { id: '8', time: '—', inspector: '', results: notChecked(CUTTING_DEFECTS) },
+  { id: '9', time: '—', inspector: '', results: notChecked(CUTTING_DEFECTS) },
 ]
 
 /**

@@ -140,7 +140,7 @@ export default function PackingPage() {
                 { label: 'Returned to store', value: formatKg(formingLog?.returnedReelWeightKg ?? 0) },
                 { label: 'Consumed', value: formatKg(consumedKg), emphasis: true },
                 {
-                  label: 'Sheets formed to punched',
+                  label: 'Sheets formed to cut',
                   value: `${formatNumber(formingLog?.outputFormedSheets ?? 0)} → ${formatNumber(totalPieces)} pcs`,
                 },
                 { label: 'Weight per tray', value: `${formatNumber(gramsPerPiece, 2)} g` },

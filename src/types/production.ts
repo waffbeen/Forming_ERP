@@ -34,13 +34,13 @@ export interface ProductionWorkOrder extends MasterBase {
   /** The process master step this work order covers. */
   processCode: string
   processName: string
-  /** Sequence within the job, so forming always precedes punching. */
+  /** Sequence within the job, so forming always precedes cutting. */
   sequenceNo: number
   /** What this step has to produce, in the process's own end unit. */
   targetQty: number
   producedQty: number
   unit: 'KG' | 'SHEET' | 'PIECE' | 'BOX'
-  machineType: 'FORMING' | 'PUNCHING' | 'NONE'
+  machineType: 'FORMING' | 'CUTTING' | 'NONE'
   priority: WorkOrderPriority
   deliveryDate: string
   workflowStage: WorkflowStage
@@ -81,7 +81,7 @@ export interface ScheduleSlot extends MasterBase {
 export type EntryStatus = 'RUNNING' | 'PAUSED' | 'COMPLETED'
 
 /**
- * A shift's output against one work order. Forming and punching keep their own
+ * A shift's output against one work order. Forming and cutting keep their own
  * detailed screens; this is the common ledger that rolls their output up to the
  * work order so remaining quantity is answerable in one place.
  */

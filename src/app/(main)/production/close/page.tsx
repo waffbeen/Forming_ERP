@@ -72,8 +72,8 @@ export default function JobClosePage() {
       header: 'Produced',
       align: 'right',
       render: (r) => {
-        const punching = ordersOf(r.jobCardNo).find((w) => w.machineType === 'PUNCHING')
-        return <span className="font-mono font-semibold">{formatNumber(punching?.producedQty ?? 0)}</span>
+        const cutting = ordersOf(r.jobCardNo).find((w) => w.machineType === 'CUTTING')
+        return <span className="font-mono font-semibold">{formatNumber(cutting?.producedQty ?? 0)}</span>
       },
     },
     {
@@ -81,8 +81,8 @@ export default function JobClosePage() {
       header: 'Shortfall',
       align: 'right',
       render: (r) => {
-        const punching = ordersOf(r.jobCardNo).find((w) => w.machineType === 'PUNCHING')
-        const short = Math.max(r.targetPiecesQty - (punching?.producedQty ?? 0), 0)
+        const cutting = ordersOf(r.jobCardNo).find((w) => w.machineType === 'CUTTING')
+        const short = Math.max(r.targetPiecesQty - (cutting?.producedQty ?? 0), 0)
         return short > 0 ? (
           <span className="font-mono text-warning">{formatNumber(short)}</span>
         ) : (
@@ -116,8 +116,8 @@ export default function JobClosePage() {
 
   const job = selectedJob ? JOB_CARDS.find((j) => j.jobCardNo === selectedJob) : undefined
   const jobOrders = selectedJob ? ordersOf(selectedJob) : []
-  const punchingOrder = jobOrders.find((w) => w.machineType === 'PUNCHING')
-  const shortfall = job ? Math.max(job.targetPiecesQty - (punchingOrder?.producedQty ?? 0), 0) : 0
+  const cuttingOrder = jobOrders.find((w) => w.machineType === 'CUTTING')
+  const shortfall = job ? Math.max(job.targetPiecesQty - (cuttingOrder?.producedQty ?? 0), 0) : 0
 
   return (
     <>
@@ -184,11 +184,11 @@ export default function JobClosePage() {
               { label: 'Sales order', value: job.soNumber },
               { label: 'Artwork', value: job.artworkCode },
               { label: 'Ordered', value: `${formatNumber(job.targetPiecesQty)} pieces` },
-              { label: 'Produced', value: `${formatNumber(punchingOrder?.producedQty ?? 0)} pieces`, emphasis: true },
+              { label: 'Produced', value: `${formatNumber(cuttingOrder?.producedQty ?? 0)} pieces`, emphasis: true },
               { label: 'Shortfall', value: formatNumber(shortfall) },
               {
                 label: 'Against order',
-                value: formatPercent(((punchingOrder?.producedQty ?? 0) / job.targetPiecesQty) * 100, 1),
+                value: formatPercent(((cuttingOrder?.producedQty ?? 0) / job.targetPiecesQty) * 100, 1),
               },
             ]}
           />

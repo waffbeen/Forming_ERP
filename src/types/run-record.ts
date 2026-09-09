@@ -6,9 +6,9 @@
    sequence is the point of the paper record, so it is the shape of this one.
 
    Forming  DP/PR/F-03 production record, DP/QC/F-01 quality checklist
-   Punching DP/PR/F-04 production record, DP/QC/F-02 quality checklist */
+   Cutting DP/PR/F-04 production record, DP/QC/F-02 quality checklist */
 
-export type RunSection = 'FORMING' | 'PUNCHING'
+export type RunSection = 'FORMING' | 'CUTTING'
 
 export type RunStage =
   | 'JOB_DETAILS'
@@ -38,7 +38,7 @@ export interface RunJobDetails {
   micron?: number
   materialType?: string
   colour?: string
-  /** Punching only. */
+  /** Cutting only. */
   remark1?: string
   remark2?: string
 }
@@ -71,7 +71,7 @@ export interface RunLineClearance {
  * failure, per revision 01 of both SOPs.
  */
 export interface RunFirstPiece {
-  /** Keyed by parameter name, from FORMING_DEFECTS or PUNCHING_DEFECTS. */
+  /** Keyed by parameter name, from FORMING_DEFECTS or CUTTING_DEFECTS. */
   results: Record<string, ParameterResult>
   producedByOperator: string
   verifiedByQc: string
@@ -114,15 +114,15 @@ export interface FormingRunOutput {
 }
 
 /**
- * Punching record DP/PR/F-04. Sorting is part of this record, not a step of
+ * Cutting record DP/PR/F-04. Sorting is part of this record, not a step of
  * its own: the press output is sorted, rejects come off, and what is left is
  * the finished goods quantity that gets bagged and boxed.
  */
-export interface PunchingRunOutput {
+export interface CuttingRunOutput {
   machineStartTime: string
   machineEndTime: string
   formedQty: number
-  punchQty: number
+  cutQty: number
   wasteSheetGrams: number
   wasteNos: number
   perPieceWeightG: number
@@ -145,7 +145,7 @@ export interface RunRecord {
   firstPiece: RunFirstPiece
   checks: RunInProcessCheck[]
   formingOutput?: FormingRunOutput
-  punchingOutput?: PunchingRunOutput
+  cuttingOutput?: CuttingRunOutput
   operatorSignedAt: string | null
   supervisorSignedAt: string | null
 }

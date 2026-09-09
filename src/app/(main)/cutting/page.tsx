@@ -8,16 +8,16 @@ import {
 } from '@/components/ui'
 import { DetailModal } from '@/components/modals'
 import { ProductionRunModal, ReconciliationBar } from '@/components/forming'
-import { JOB_CARDS, PUNCHING_LOGS } from '@/data'
+import { JOB_CARDS, CUTTING_LOGS } from '@/data'
 import { reconcileJob } from '@/lib/reconcile'
 import { formatKg, formatNumber, formatPercent } from '@/lib/utils'
-import type { PunchingLog } from '@/types'
+import type { CuttingLog } from '@/types'
 
-export default function PunchingPage() {
-  const [selectedId, setSelectedId] = React.useState(PUNCHING_LOGS[0].punchingLogId)
+export default function CuttingPage() {
+  const [selectedId, setSelectedId] = React.useState(CUTTING_LOGS[0].cuttingLogId)
   const [detailOpen, setDetailOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
-  const selected = PUNCHING_LOGS.find((p) => p.punchingLogId === selectedId) ?? PUNCHING_LOGS[0]
+  const selected = CUTTING_LOGS.find((p) => p.cuttingLogId === selectedId) ?? CUTTING_LOGS[0]
   const job = JOB_CARDS.find((j) => j.jobCardNo === selected.jobCardNo)
 
   const recon = reconcileJob(selected.jobCardNo)
@@ -28,12 +28,12 @@ export default function PunchingPage() {
   const rejectKg = recon?.rejectKg ?? 0
   const goodKg = recon?.goodKg ?? 0
 
-  const piecesToday = PUNCHING_LOGS.reduce((s, p) => s + p.goodPiecesOutput, 0)
-  const rejectsToday = PUNCHING_LOGS.reduce((s, p) => s + p.rejectedPiecesQty, 0)
-  const skeletonToday = PUNCHING_LOGS.reduce((s, p) => s + p.skeletonScrapWeightKg, 0)
-  const sheetsToday = PUNCHING_LOGS.reduce((s, p) => s + p.inputFormedSheets, 0)
+  const piecesToday = CUTTING_LOGS.reduce((s, p) => s + p.goodPiecesOutput, 0)
+  const rejectsToday = CUTTING_LOGS.reduce((s, p) => s + p.rejectedPiecesQty, 0)
+  const skeletonToday = CUTTING_LOGS.reduce((s, p) => s + p.skeletonScrapWeightKg, 0)
+  const sheetsToday = CUTTING_LOGS.reduce((s, p) => s + p.inputFormedSheets, 0)
 
-  const columns: Column<PunchingLog>[] = [
+  const columns: Column<CuttingLog>[] = [
     { key: 'job', sortValue: (r) => r.jobCardNo, header: 'Job card', render: (r) => <StackedCell top={r.jobCardNo} bottom={r.operator} mono /> },
     { key: 'input', sortValue: (r) => r.inputFormedSheets, header: 'Sheets in', align: 'right', render: (r) => <span className="font-mono">{formatNumber(r.inputFormedSheets)}</span> },
     { key: 'stroke', header: 'Per stroke', align: 'right', render: (r) => <span className="font-mono">{r.sheetsPerStroke}</span> },
@@ -51,16 +51,16 @@ export default function PunchingPage() {
     <>
       <PageHeader
         eyebrow="Production"
-        title="Punching Entry"
+        title="Cutting Entry"
         actions={
           <Button variant="primary" icon={Save} onClick={() => setCreateOpen(true)}>
-            Post punching entry
+            Post cutting entry
           </Button>
         }
       />
 
       <StatsGrid>
-        <StatsCard label="Sheets punched" value={formatNumber(sheetsToday)} note="Fed from forming output" icon={Layers} />
+        <StatsCard label="Sheets cut" value={formatNumber(sheetsToday)} note="Fed from forming output" icon={Layers} />
         <StatsCard label="Good pieces" value={formatNumber(piecesToday)} note="Defect-free trays" icon={Scissors} />
         <StatsCard
           label="Rejects"
@@ -80,15 +80,15 @@ export default function PunchingPage() {
 
       <>
         <DataTable
-          title="Punching run log"
-          rows={PUNCHING_LOGS}
+          title="Cutting run log"
+          rows={CUTTING_LOGS}
           columns={columns}
-          rowKey={(r) => r.punchingLogId}
+          rowKey={(r) => r.cuttingLogId}
           searchText={(r) => `${r.jobCardNo} ${r.operator}`}
           searchPlaceholder="Search job card or operator"
           selectedKey={selectedId}
-          onSelect={(r) => setSelectedId(r.punchingLogId)}
-          onOpen={(r) => { setSelectedId(r.punchingLogId); setDetailOpen(true) }}
+          onSelect={(r) => setSelectedId(r.cuttingLogId)}
+          onOpen={(r) => { setSelectedId(r.cuttingLogId); setDetailOpen(true) }}
         />
 
         <DetailModal
@@ -122,13 +122,13 @@ export default function PunchingPage() {
             </>
           ) : (
             <p className="text-sm text-fg-subtle">
-              This job has not been punched yet. Its line clearance is still unsigned.
+              This job has not been cut yet. Its line clearance is still unsigned.
             </p>
           )}
         </DetailModal>
       </>
 
-      <ProductionRunModal isOpen={createOpen} onClose={() => setCreateOpen(false)} section="PUNCHING" />
+      <ProductionRunModal isOpen={createOpen} onClose={() => setCreateOpen(false)} section="CUTTING" />
     </>
   )
 }

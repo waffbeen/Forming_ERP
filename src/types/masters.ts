@@ -104,7 +104,7 @@ export interface Product extends MasterBase {
 
 // ------------------------------------------------------------------- Process
 
-export type ProcessStage = 'FORMING' | 'PUNCHING' | 'PACKING' | 'QC' | 'DISPATCH' | 'RECYCLING'
+export type ProcessStage = 'FORMING' | 'CUTTING' | 'SORTING' | 'PACKING' | 'QC' | 'DISPATCH' | 'RECYCLING'
 
 export interface Process extends MasterBase {
   processId: string
@@ -113,7 +113,7 @@ export interface Process extends MasterBase {
   stage: ProcessStage
   department: string
   /** Which machine type runs it, if any. */
-  machineType: 'FORMING' | 'PUNCHING' | 'NONE'
+  machineType: 'FORMING' | 'CUTTING' | 'NONE'
   /** Costing basis for the conversion charge. */
   typeOfCharges: 'PER_PIECE' | 'PER_SHEET' | 'PER_HOUR'
   rate: number

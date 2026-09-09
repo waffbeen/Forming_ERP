@@ -10,7 +10,7 @@ import { DECKLE_MM, PLANT } from '@/config/plant'
 import { calculateNesting } from '@/lib/layout-calc'
 import { formatKg, formatNumber, formatPercent } from '@/lib/utils'
 
-export function PunchingEntryModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function CuttingEntryModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [jobCardNo, setJobCardNo] = React.useState('')
   const [operator, setOperator] = React.useState('')
   const [shift, setShift] = React.useState('A')
@@ -69,7 +69,7 @@ export function PunchingEntryModal({ isOpen, onClose }: { isOpen: boolean; onClo
     <StandardModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Post Punching Entry"
+      title="Post Cutting Entry"
       badge={clearanceSigned ? { label: 'Gate open', tone: 'success' } : { label: 'Gate locked', tone: 'error' }}
       size="xl"
       onSave={handleSave}
@@ -90,7 +90,7 @@ export function PunchingEntryModal({ isOpen, onClose }: { isOpen: boolean; onClo
           <div>
             <h5 className="text-sm font-semibold text-error">Entry locked</h5>
             <p className="mt-0.5 max-w-[62ch] text-xs text-fg-muted">
-              QC must clear the punching die before the press runs, so that trays from the previous job cannot be mixed
+              QC must clear the cutting die before the press runs, so that trays from the previous job cannot be mixed
               into this batch.
             </p>
           </div>
@@ -99,7 +99,7 @@ export function PunchingEntryModal({ isOpen, onClose }: { isOpen: boolean; onClo
 
       <FormSection title="Quality gate">
         <Checkbox
-          label="Punching die line clearance signed"
+          label="Cutting die line clearance signed"
           hint="Die cavity empty, no trays from the previous job in the collection bin"
           checked={clearanceSigned}
           onChange={(e) => setClearanceSigned(e.target.checked)}
@@ -143,7 +143,7 @@ export function PunchingEntryModal({ isOpen, onClose }: { isOpen: boolean; onClo
               { value: 'B', label: 'Shift B' },
             ]}
           />
-          <DerivedField label="Press" value={job?.punchingMachineCode ?? '—'} />
+          <DerivedField label="Press" value={job?.cuttingMachineCode ?? '—'} />
           <DerivedField label="Ups per sheet" value={nesting ? String(nesting.upsPerSheet) : '—'} />
           <DerivedField
             label="Strokes needed"
