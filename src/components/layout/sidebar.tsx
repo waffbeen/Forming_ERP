@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
@@ -67,12 +68,17 @@ export function Sidebar({ isCollapsed, onToggle, onNavigate, className }: Sideba
       >
         {/* Brand */}
         <div className={cn('flex h-[52px] shrink-0 items-center gap-2.5 border-b border-white/10', isCollapsed ? 'justify-center px-2' : 'px-4')}>
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-white/15">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-              <path d="M3 8h18v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <path d="M3 8l3-4h12l3 4" />
-              <path d="M9 12h6" />
-            </svg>
+          {/* Their own mark, off their own documents. It carries its own
+              colours, so it sits on white rather than on the dark rail. */}
+          <span className="grid h-7 w-9 shrink-0 place-items-center overflow-hidden rounded-md bg-white px-1">
+            <Image
+              src="/desform-logo.png"
+              alt={PLANT.companyName}
+              width={173}
+              height={121}
+              priority
+              className="h-auto w-full object-contain"
+            />
           </span>
           {!isCollapsed ? (
             <span className="min-w-0 leading-tight">
