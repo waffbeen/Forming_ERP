@@ -11,7 +11,7 @@ import {
 import {
   ITEMS, SUPPLIERS, USERS,
   average, judgeCharacteristic, nextQcNumber, orderedGaugeOf, overallOf, qcParametersFor,
-  qcReportForLine, rmQcLinesOf,
+  qcReportForLine, rmQcLinesOf, samplePlanFor,
 } from '@/data'
 import { PLANT } from '@/config/plant'
 import { formatDate, formatNumber } from '@/lib/utils'
@@ -96,8 +96,9 @@ export function QcReportModal({ isOpen, onClose, grn, line, existing, onSaved }:
   const item = itemOf(line.itemId)
   const orderedGauge = orderedGaugeOf(grn.poNumber, line.poLineId)
 
-  const [sampleCount, setSampleCount] = React.useState(existing?.sampleCount ?? 3)
-  const [sampleSize, setSampleSize] = React.useState(existing?.sampleSize ?? '1 m² per roll')
+  const plan = samplePlanFor(line.itemId)
+  const [sampleCount, setSampleCount] = React.useState(existing?.sampleCount ?? plan?.sampleCount ?? 3)
+  const [sampleSize, setSampleSize] = React.useState(existing?.sampleSize ?? plan?.sampleSize ?? '')
   const [inspectorId, setInspectorId] = React.useState(existing?.inspectedByUserId ?? '')
   const [remarks, setRemarks] = React.useState(existing?.remarks ?? '')
   const [drafts, setDrafts] = React.useState<Record<string, CharacteristicDraft>>({})
@@ -106,9 +107,9 @@ export function QcReportModal({ isOpen, onClose, grn, line, existing, onSaved }:
   /* Reopening the format starts it clean, or on what is already on file. */
   React.useEffect(() => {
     if (!isOpen) return
-    const count = existing?.sampleCount ?? 3
+    const count = existing?.sampleCount ?? plan?.sampleCount ?? 3
     setSampleCount(count)
-    setSampleSize(existing?.sampleSize ?? '1 m² per roll')
+    setSampleSize(existing?.sampleSize ?? plan?.sampleSize ?? '')
     setInspectorId(existing?.inspectedByUserId ?? '')
     setRemarks(existing?.remarks ?? '')
     setDrafts(
@@ -119,7 +120,7 @@ export function QcReportModal({ isOpen, onClose, grn, line, existing, onSaved }:
         }),
       ),
     )
-  }, [isOpen, existing, parameters])
+  }, [isOpen, existing, parameters, plan])
 
   /* More samples means more columns, and the readings already typed stay put. */
   const resize = (count: number) => {
@@ -151,9 +152,8 @@ export function QcReportModal({ isOpen, onClose, grn, line, existing, onSaved }:
   const judged = parameters.map((p) => {
     const draft = drafts[p.parameterId] ?? blankDraft(p, sampleCount)
     const readings = filledReadings(draft.readings)
-    const complete = p.acceptanceOptions
-      ? draft.acceptanceStatus !== ''
-      : readings.length === sampleCount
+    const complete =
+      p.fieldType === 'NUMERIC' ? readings.length === sampleCount : draft.acceptanceStatus.trim() !== ''
     const result = complete
       ? judgeCharacteristic(p, readings, draft.acceptanceStatus || null, orderedGauge)
       : null
@@ -170,8 +170,8 @@ export function QcReportModal({ isOpen, onClose, grn, line, existing, onSaved }:
     window.setTimeout(() => {
       const characteristics: QcCharacteristicResult[] = judged.map((j) => ({
         parameterId: j.parameter.parameterId,
-        readings: j.parameter.acceptanceOptions ? [] : j.readings,
-        acceptanceStatus: j.parameter.acceptanceOptions ? j.draft.acceptanceStatus : null,
+        readings: j.parameter.fieldType === 'NUMERIC' ? j.readings : [],
+        acceptanceStatus: j.parameter.fieldType === 'NUMERIC' ? null : j.draft.acceptanceStatus,
         result: j.result ?? 'FAIL',
         remark: j.draft.remark,
       }))
@@ -282,27 +282,58 @@ export function QcReportModal({ isOpen, onClose, grn, line, existing, onSaved }:
                   <span className="text-sm font-medium">{parameter.characteristic}</span>
                   <span className="ml-2 font-mono text-xs text-fg-muted">{parameter.specification}</span>
                 </div>
-                {complete && result ? (
-                  <Badge tone={RESULT_TONE[result]}>{result === 'PASS' ? 'Within spec' : 'Out of spec'}</Badge>
-                ) : (
+                {!complete ? (
                   <Badge tone="muted">Not filled</Badge>
-                )}
+                ) : parameter.fieldType === 'TEXT' ? (
+                  <Badge tone="info">Recorded</Badge>
+                ) : result ? (
+                  <Badge tone={RESULT_TONE[result]}>{result === 'PASS' ? 'Within spec' : 'Out of spec'}</Badge>
+                ) : null}
               </div>
-              <p className="mt-0.5 text-xs text-fg-subtle">{parameter.method}</p>
+              <p className="mt-0.5 text-xs text-fg-subtle">
+                {parameter.method} · {parameter.measuringEquipment}
+              </p>
 
-              {parameter.acceptanceOptions ? (
+              {parameter.fieldType !== 'NUMERIC' ? (
                 <div className="mt-2">
                   <FormGrid cols={2}>
-                    <Select
-                      label="Acceptance status"
-                      required
-                      placeholder="Select what was seen"
-                      value={draft.acceptanceStatus}
-                      disabled={readOnly}
-                      onChange={(e) => update(parameter.parameterId, { acceptanceStatus: e.target.value })}
-                      options={parameter.acceptanceOptions.map((o) => ({ value: o, label: o }))}
-                      helper={`Acceptable: ${parameter.acceptanceOptions[0]}`}
-                    />
+                    {parameter.fieldType === 'COMBO' ? (
+                      <Select
+                        label="Acceptance status"
+                        required
+                        placeholder="Select what was seen"
+                        value={draft.acceptanceStatus}
+                        disabled={readOnly}
+                        onChange={(e) => update(parameter.parameterId, { acceptanceStatus: e.target.value })}
+                        options={(parameter.acceptanceOptions ?? []).map((o) => ({ value: o, label: o }))}
+                        helper={`Acceptable: ${parameter.acceptanceOptions?.[0] ?? '—'}`}
+                      />
+                    ) : parameter.fieldType === 'CHECKBOX' ? (
+                      <Select
+                        label="Confirmed"
+                        required
+                        placeholder="Yes or no"
+                        value={draft.acceptanceStatus}
+                        disabled={readOnly}
+                        onChange={(e) => update(parameter.parameterId, { acceptanceStatus: e.target.value })}
+                        options={[
+                          { value: 'Yes', label: 'Yes' },
+                          { value: 'No', label: 'No' },
+                        ]}
+                        helper="No is a finding against the batch"
+                      />
+                    ) : (
+                      <Input
+                        label="Recorded as"
+                        required
+                        mono
+                        value={draft.acceptanceStatus}
+                        disabled={readOnly}
+                        onChange={(e) => update(parameter.parameterId, { acceptanceStatus: e.target.value })}
+                        placeholder="Copy it exactly off the label"
+                        helper="Recorded on the report as evidence, not judged"
+                      />
+                    )}
                     <Input
                       label="Remark"
                       value={draft.remark}

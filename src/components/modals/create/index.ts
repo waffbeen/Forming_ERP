@@ -26,6 +26,8 @@ export { RequisitionModal, PurchaseOrderModal, GrnModal } from './procurement-mo
 export { RmQcModal, QcReportModal, SupplierReturnModal } from './rm-qc-modal'
 export type { RmQcModalProps, QcReportModalProps, SupplierReturnModalProps, SupplierReturnLine } from './rm-qc-modal'
 export { MaterialIssueModal } from './material-issue-modal'
+export { QcParameterModal } from './qc-parameter-modal'
+export type { QcParameterModalProps } from './qc-parameter-modal'
 
 // Master pickers: a dropdown that can create the record it is selecting.
 export * from './master-pickers'

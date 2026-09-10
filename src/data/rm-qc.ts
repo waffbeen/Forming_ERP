@@ -1,5 +1,6 @@
 import type {
-  GoodsReceiptNote, GrnLine, QcCharacteristicResult, QcParameter, QcResult, RmQcReport, RmQcTab,
+  GoodsReceiptNote, GrnLine, QcCharacteristicResult, QcParameter, QcResult, QcSamplePlan,
+  RmQcReport, RmQcTab,
 } from '@/types/procurement'
 import { PLANT } from '@/config/plant'
 import { CATEGORIES, ITEMS } from './masters-extended'
@@ -29,7 +30,9 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP01', categoryId: 'CT1',
     characteristic: 'Thickness',
     specification: 'Ordered gauge ± 2 %',
-    method: 'Digital micrometer, five points across the web',
+    fieldType: 'NUMERIC',
+    method: 'Five points across the web, edge to edge',
+    measuringEquipment: 'Digital micrometer, 0 to 25 mm',
     uom: 'µm', lowerLimit: null, upperLimit: null, nominal: null,
     tolerancePctOfOrder: 2, acceptanceOptions: null,
   },
@@ -37,7 +40,9 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP02', categoryId: 'CT1',
     characteristic: 'Deckle width',
     specification: 'Matches the ordered deckle',
-    method: 'Steel rule against the wound edge',
+    fieldType: 'COMBO',
+    method: 'Measured across the wound edge',
+    measuringEquipment: 'Steel rule, 1 m',
     uom: null, lowerLimit: null, upperLimit: null, nominal: null,
     tolerancePctOfOrder: null,
     acceptanceOptions: ['Matches order', 'Narrow', 'Wide'],
@@ -46,7 +51,9 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP03', categoryId: 'CT1',
     characteristic: 'Weight against challan',
     specification: 'Weighbridge reading matches the delivery note',
-    method: 'Platform scale, roll by roll',
+    fieldType: 'COMBO',
+    method: 'Weighed roll by roll against the challan',
+    measuringEquipment: 'Platform scale, 500 kg',
     uom: null, lowerLimit: null, upperLimit: null, nominal: null,
     tolerancePctOfOrder: null,
     acceptanceOptions: ['Matches', 'Short', 'Excess'],
@@ -55,7 +62,9 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP04', categoryId: 'CT1',
     characteristic: 'Visual appearance',
     specification: 'Clear of haze, streaks and contamination',
-    method: 'Unwind two metres over a light box',
+    fieldType: 'COMBO',
+    method: 'Two metres unwound and viewed against the light',
+    measuringEquipment: 'Light box, D65',
     uom: null, lowerLimit: null, upperLimit: null, nominal: null,
     tolerancePctOfOrder: null,
     acceptanceOptions: ['Clear, no haze', 'Slight haze', 'Haze or streaks', 'Black specks'],
@@ -64,7 +73,9 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP05', categoryId: 'CT1',
     characteristic: 'Core and winding',
     specification: 'Sound core, evenly wound, edges undamaged',
-    method: 'Visual, both faces of the roll',
+    fieldType: 'COMBO',
+    method: 'Both faces of the roll examined',
+    measuringEquipment: 'Visual',
     uom: null, lowerLimit: null, upperLimit: null, nominal: null,
     tolerancePctOfOrder: null,
     acceptanceOptions: ['Sound', 'Telescoped', 'Crushed core', 'Edge damage'],
@@ -73,7 +84,9 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP06', categoryId: 'CT1',
     characteristic: 'Gels and fish eyes',
     specification: 'Not more than 3 per square metre',
-    method: 'Light box count over one square metre',
+    fieldType: 'NUMERIC',
+    method: 'Counted over one square metre',
+    measuringEquipment: 'Light box, D65',
     uom: 'nos/m²', lowerLimit: 0, upperLimit: 3, nominal: 1,
     tolerancePctOfOrder: null, acceptanceOptions: null,
   },
@@ -81,10 +94,32 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP07', categoryId: 'CT1',
     characteristic: 'Forming trial',
     specification: 'Sample sheet forms to full depth without webbing',
+    fieldType: 'COMBO',
     method: 'Single shot on the sampling die',
+    measuringEquipment: 'Sampling die, TF-03',
     uom: null, lowerLimit: null, upperLimit: null, nominal: null,
     tolerancePctOfOrder: null,
     acceptanceOptions: ['Forms to depth', 'Webbing', 'Cracks at the corners'],
+  },
+  {
+    parameterId: 'QP08', categoryId: 'CT1',
+    characteristic: 'Test certificate enclosed',
+    specification: "Supplier's batch certificate received with the consignment",
+    fieldType: 'CHECKBOX',
+    method: 'Checked against the batch number on the roll label',
+    measuringEquipment: 'Document check',
+    uom: null, lowerLimit: null, upperLimit: null, nominal: null,
+    tolerancePctOfOrder: null, acceptanceOptions: null,
+  },
+  {
+    parameterId: 'QP09', categoryId: 'CT1',
+    characteristic: "Supplier's batch number",
+    specification: 'Recorded as it appears on the roll label',
+    fieldType: 'TEXT',
+    method: 'Copied from the label, not interpreted',
+    measuringEquipment: 'Roll label',
+    uom: null, lowerLimit: null, upperLimit: null, nominal: null,
+    tolerancePctOfOrder: null, acceptanceOptions: null,
   },
 
   // ---------------------------------------------------------------- PVC only
@@ -92,7 +127,9 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP20', categoryId: 'CT2',
     characteristic: 'Colour against retained sample',
     specification: 'Within the approved shade band',
-    method: 'Side by side with the retained swatch, D65 light',
+    fieldType: 'COMBO',
+    method: 'Compared side by side with the retained swatch',
+    measuringEquipment: 'Retained swatch, D65 light box',
     uom: null, lowerLimit: null, upperLimit: null, nominal: null,
     tolerancePctOfOrder: null,
     acceptanceOptions: ['Matches retain', 'Shade off'],
@@ -101,7 +138,9 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP21', categoryId: 'CT2',
     characteristic: 'Residual VCM',
     specification: 'Not more than 1 ppm',
-    method: "Supplier's batch certificate",
+    fieldType: 'NUMERIC',
+    method: "Read off the supplier's batch certificate",
+    measuringEquipment: "Supplier's certificate",
     uom: 'ppm', lowerLimit: 0, upperLimit: 1, nominal: 0.2,
     tolerancePctOfOrder: null, acceptanceOptions: null,
   },
@@ -111,7 +150,9 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP30', categoryId: 'CT3',
     characteristic: 'Food grade certificate',
     specification: 'Migration certificate enclosed and in date',
-    method: 'Document check against the batch number',
+    fieldType: 'COMBO',
+    method: 'Checked against the batch number',
+    measuringEquipment: 'Document check',
     uom: null, lowerLimit: null, upperLimit: null, nominal: null,
     tolerancePctOfOrder: null,
     acceptanceOptions: ['Enclosed and valid', 'Missing', 'Expired'],
@@ -120,11 +161,35 @@ export const QC_PARAMETERS: QcParameter[] = [
     parameterId: 'QP31', categoryId: 'CT3',
     characteristic: 'Intrinsic viscosity',
     specification: '0.70 to 0.86 dl/g',
-    method: "Supplier's batch certificate",
+    fieldType: 'NUMERIC',
+    method: "Read off the supplier's batch certificate",
+    measuringEquipment: "Supplier's certificate",
     uom: 'dl/g', lowerLimit: 0.7, upperLimit: 0.86, nominal: 0.78,
     tolerancePctOfOrder: null, acceptanceOptions: null,
   },
 ]
+
+/**
+ * The sampling plan per format. An inspector draws one set of samples and reads
+ * every numeric characteristic off that same set, so this belongs to the format
+ * rather than to any one characteristic.
+ */
+export const QC_SAMPLE_PLANS: QcSamplePlan[] = [
+  { categoryId: 'CT1', sampleSize: '1 m² per roll', sampleCount: 3 },
+  { categoryId: 'CT2', sampleSize: '1 m² per roll', sampleCount: 3 },
+  { categoryId: 'CT3', sampleSize: '1 m² per roll, both edges', sampleCount: 5 },
+]
+
+/** The plan for an item, falling back to the category above it. */
+export function samplePlanFor(itemId: string): QcSamplePlan | null {
+  const item = ITEMS.find((i) => i.itemId === itemId)
+  if (!item) return null
+  for (const categoryId of categoryChain(item.categoryId)) {
+    const plan = QC_SAMPLE_PLANS.find((s) => s.categoryId === categoryId)
+    if (plan) return plan
+  }
+  return null
+}
 
 /**
  * The gauge the order actually asked for, which is what a measured reading is
@@ -176,13 +241,19 @@ export function itemNeedsQc(itemId: string) {
 export function judgeCharacteristic(
   parameter: QcParameter,
   readings: number[],
+  /** The answer given: a chosen option, a tick, or recorded text. */
   acceptanceStatus: string | null,
   /** What the order asked for, where the limits are relative to it. */
   orderedValue: number | null,
 ): QcResult {
-  if (parameter.acceptanceOptions) {
+  // A recorded observation is evidence, not a verdict, so it never fails.
+  if (parameter.fieldType === 'TEXT') return 'PASS'
+
+  if (parameter.fieldType === 'CHECKBOX') return acceptanceStatus === 'Yes' ? 'PASS' : 'FAIL'
+
+  if (parameter.fieldType === 'COMBO') {
     // The first option is the acceptable answer; anything else is a finding.
-    return acceptanceStatus === parameter.acceptanceOptions[0] ? 'PASS' : 'FAIL'
+    return acceptanceStatus === parameter.acceptanceOptions?.[0] ? 'PASS' : 'FAIL'
   }
 
   if (readings.length === 0) return 'FAIL'
@@ -251,8 +322,14 @@ function report(
   const characteristics: QcCharacteristicResult[] = qcParametersFor(line.itemId).map((p) => {
     const finding = findings[p.parameterId]
 
-    if (p.acceptanceOptions) {
-      const status = finding?.acceptanceStatus ?? p.acceptanceOptions[0]
+    if (p.fieldType !== 'NUMERIC') {
+      const answered =
+        p.fieldType === 'COMBO'
+          ? (p.acceptanceOptions?.[0] ?? '')
+          : p.fieldType === 'CHECKBOX'
+            ? 'Yes'
+            : `${line.reelId ?? grn.supplierChallanNo}/B`
+      const status = finding?.acceptanceStatus ?? answered
       return {
         parameterId: p.parameterId,
         readings: [],

@@ -124,25 +124,28 @@ export default function GrnPage() {
         )
       },
     },
-    {
-      key: 'action',
-      header: '',
-      width: '150px',
-      render: (r) =>
-        isAutoApproved(r) ? null : (
-          <Button
-            variant="quiet"
-            icon={ClipboardCheck}
-            onClick={() => {
-              setSelectedId(r.grnId)
-              setQcOpen(true)
-            }}
-          >
-            {qcTabOf(r) === 'PENDING' ? 'Do QC' : 'QC detail'}
-          </Button>
-        ),
-    },
   ]
+
+  /* Memoised: a fresh object on every render would rebuild the grid's columns. */
+  const actions = React.useMemo(
+    () => ({
+      onView: (row: GoodsReceiptNote) => {
+        setSelectedId(row.grnId)
+        setDetailOpen(true)
+      },
+      onEdit: (row: GoodsReceiptNote) => {
+        setSelectedId(row.grnId)
+        setQcOpen(true)
+      },
+      showView: true,
+      // Nothing is configured against the item, so there is no QC to process.
+      showEdit: (row: GoodsReceiptNote) => !isAutoApproved(row),
+      mode: 'buttons' as const,
+      primaryActions: ['view' as const, 'edit' as const],
+      labels: { view: 'View receipt', edit: 'Process QC' },
+    }),
+    [],
+  )
 
   return (
     <>
@@ -150,9 +153,18 @@ export default function GrnPage() {
         eyebrow="Procurement"
         title="Goods Receipt"
         actions={
-          <Button variant="primary" icon={Plus} onClick={() => setCreateOpen(true)}>
-            New GRN
-          </Button>
+          <>
+            <Button
+              icon={ClipboardCheck}
+              disabled={isAutoApproved(selected)}
+              onClick={() => setQcOpen(true)}
+            >
+              {qcTabOf(selected) === 'PENDING' ? 'Process QC' : 'QC detail'}
+            </Button>
+            <Button variant="primary" icon={Plus} onClick={() => setCreateOpen(true)}>
+              New GRN
+            </Button>
+          </>
         }
       />
 
@@ -162,11 +174,12 @@ export default function GrnPage() {
           rows={rows}
           columns={columns}
           rowKey={(r) => r.grnId}
-          mainColumns="grn,po,supplier,qc,action"
+          mainColumns="grn,po,supplier,qc"
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
           selectedKey={selected.grnId}
           onSelect={(r) => setSelectedId(r.grnId)}
           onOpen={(r) => { setSelectedId(r.grnId); setDetailOpen(true) }}
+          actions={actions}
         />
 
         <DetailModal

@@ -59,10 +59,22 @@ export default function RmQcPage() {
     (l) => l.isQcApproved && !l.qcNumber && !itemNeedsQc(l.itemId),
   )
 
-  const open = (grn: GoodsReceiptNote) => {
+  const open = React.useCallback((grn: GoodsReceiptNote) => {
     setSelectedId(grn.grnId)
     setQcOpen(true)
-  }
+  }, [])
+
+  /* Memoised: a fresh object on every render would rebuild the grid's columns. */
+  const actions = React.useMemo(
+    () => ({
+      onEdit: open,
+      showEdit: true,
+      mode: 'buttons' as const,
+      primaryActions: ['edit' as const],
+      labels: { edit: tab === 'PENDING' ? 'Process QC' : 'Edit QC' },
+    }),
+    [tab],
+  )
 
   const columns: Column<GoodsReceiptNote>[] = [
     {
@@ -126,33 +138,45 @@ export default function RmQcPage() {
       },
     },
     { key: 'inspector', header: 'Inspected by', render: (r) => userName(r.inspectedByUserId) },
-    {
-      key: 'action',
-      header: '',
-      width: '150px',
-      render: (r) => (
-        <Button variant="quiet" icon={ClipboardCheck} onClick={() => open(r)}>
-          {tab === 'PENDING' ? 'Inspect' : 'Open'}
-        </Button>
-      ),
-    },
   ]
+
 
   return (
     <>
-      <PageHeader eyebrow="Quality" title="Raw Material QC" />
+      <PageHeader
+        eyebrow="Quality"
+        title="Raw Material QC"
+        actions={
+          <Button
+            variant="primary"
+            icon={ClipboardCheck}
+            disabled={!selected}
+            onClick={() => selected && open(selected)}
+          >
+            {tab === 'PENDING' ? 'Process QC' : 'Open QC'}
+          </Button>
+        }
+      />
 
       <DataTable
         title="Receipts by QC status"
         rows={rows}
         columns={columns}
         rowKey={(r) => r.grnId}
-        mainColumns="grn,supplier,split,action"
+        mainColumns="grn,supplier,split"
         toolbar={<Tabs tabs={tabs} activeId={tab} onChange={(id) => setTab(id as RmQcTab)} />}
         selectedKey={selected?.grnId}
         onSelect={(r) => setSelectedId(r.grnId)}
         onOpen={open}
+        actions={actions}
       />
+
+      {selected ? (
+        <Note>
+          {selected.grnNumber} is selected. Process QC from the button above, the action on its row, or by opening the
+          row.
+        </Note>
+      ) : null}
 
       {tab === 'PENDING' && rows.length === 0 ? (
         <Note>Nothing is waiting on the inspection table.</Note>

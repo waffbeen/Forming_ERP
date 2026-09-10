@@ -165,11 +165,31 @@ export interface StockBalance {
 // ---------------------------------------------------------------- RM QC
 
 /**
+ * How a characteristic is answered, which is also what decides how it is
+ * judged. The master sets this per characteristic, so the inspection screen
+ * never has to guess what kind of question it is asking.
+ */
+export type QcFieldType =
+  /** Readings against limits: fails if any single sample falls outside. */
+  | 'NUMERIC'
+  /** One of a fixed list, the first of which is the acceptable answer. */
+  | 'COMBO'
+  /** A yes/no the inspector ticks; unticked is a fail. */
+  | 'CHECKBOX'
+  /**
+   * A recorded observation with no verdict of its own — a batch number off the
+   * supplier's label, say. It is evidence on the report, never a pass or fail,
+   * so it cannot silently let a bad batch through.
+   */
+  | 'TEXT'
+
+/**
  * One characteristic on the incoming inspection format, defined per item
  * category so a polymer reel and a carton are not asked the same questions.
  *
- * A numeric characteristic is judged against its limits; an attribute one is
- * judged by eye against a list of acceptable answers.
+ * This is the master the QC screen is built from: change a row here and the
+ * next inspection asks the new question. Nothing about the format is written
+ * into the screen itself.
  */
 export interface QcParameter {
   parameterId: string
@@ -177,8 +197,12 @@ export interface QcParameter {
   categoryId: string
   characteristic: string
   specification: string
+  /** How it is answered, and therefore how it is judged. */
+  fieldType: QcFieldType
   /** How it is measured: the instrument or the reference method. */
   method: string
+  /** The instrument itself, which an auditor asks for by name. */
+  measuringEquipment: string
   uom: string | null
   /** Numeric characteristics only, and the reading is judged against them. */
   lowerLimit: number | null
@@ -196,6 +220,19 @@ export interface QcParameter {
    * is the acceptable one. Null on a numeric characteristic.
    */
   acceptanceOptions: string[] | null
+}
+
+/**
+ * How much to draw, and how many samples from it, for one category's format.
+ * It sits beside the characteristics rather than on them: an inspector draws
+ * one set of samples and reads every characteristic off the same set.
+ */
+export interface QcSamplePlan {
+  categoryId: string
+  /** What is drawn, in the store's own words. */
+  sampleSize: string
+  /** How many are drawn, and therefore how many readings each numeric row takes. */
+  sampleCount: number
 }
 
 export type QcResult = 'PASS' | 'FAIL'

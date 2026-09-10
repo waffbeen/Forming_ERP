@@ -4,7 +4,7 @@ import {
   Scissors, ShieldCheck, Stamp, Tags, Truck, Users, Warehouse, SlidersHorizontal,
   ClipboardList as PrIcon, ShoppingCart, PackagePlus, Boxes as StockIcon,
   Gauge, CheckSquare, ListChecks, MessageSquareQuote, Calculator,
-  ClipboardCheck, ArrowRightLeft, ShieldAlert, FileCheck2, TriangleAlert,
+  ClipboardCheck, ArrowRightLeft, ShieldAlert, FileCheck2, TriangleAlert, FlaskConical,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -92,6 +92,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Material Grades', href: '/master/material', icon: Layers },
       { label: 'Machines', href: '/master/machine', icon: Cog },
       { label: 'Dies & Tools', href: '/master/die', icon: Stamp },
+      { label: 'QC Parameters', href: '/master/item-qc-parameter', icon: FlaskConical },
     ],
   },
   {
