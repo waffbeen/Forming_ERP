@@ -64,6 +64,13 @@ export interface Item extends MasterBase {
   reorderLevel: number
   ratePerUom: number
   hsnCode: string
+  /**
+   * Reel specification, on the raw material items that are reels. A roll's
+   * polymer and deckle belong to what was ordered, not to the roll, so the
+   * receipt does not have to be told them again.
+   */
+  materialType?: MaterialType
+  deckleWidthMm?: number
 }
 
 // ------------------------------------------------------------------- Product

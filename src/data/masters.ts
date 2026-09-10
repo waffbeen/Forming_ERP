@@ -1,5 +1,5 @@
 import type {
-  ArtworkMaster, Customer, Die, Machine, MaterialGrade, Operator, Reel,
+  ArtworkMaster, Customer, Die, Machine, MaterialGrade, Operator,
 } from '@/types'
 import { calculateNesting } from '@/lib/layout-calc'
 import { DECKLE_MM, PLANT } from '@/config/plant'
@@ -49,16 +49,8 @@ export const ARTWORKS: ArtworkMaster[] = ARTWORK_SPECS.map((spec) => ({
   }).upsPerSheet,
 }))
 
-export const REELS: Reel[] = [
-  { reelId: 'RL-9241', grnNumber: 'GRN-2609-0188', materialType: 'PVC', thicknessMicrons: 301, deckleWidthMm: 620, grossWeightKg: 340.0, netWeightKg: 16.0, qcStatus: 'APPROVED', storageLocation: 'QC Approved, Rack A2', receivedOn: '2026-09-04', supplier: 'Supreme Polymers' },
-  { reelId: 'RL-9244', grnNumber: 'GRN-2609-0191', materialType: 'HIPS', thicknessMicrons: 348, deckleWidthMm: 620, grossWeightKg: 480.0, netWeightKg: 212.4, qcStatus: 'APPROVED', storageLocation: 'QC Approved, Rack A3', receivedOn: '2026-09-05', supplier: 'Kaira Extrusions' },
-  { reelId: 'RL-9247', grnNumber: 'GRN-2609-0194', materialType: 'PET', thicknessMicrons: 243, deckleWidthMm: 600, grossWeightKg: 295.0, netWeightKg: 295.0, qcStatus: 'QUARANTINE', storageLocation: 'Hold Bin H1', receivedOn: '2026-09-07', supplier: 'Nova Films' },
-  { reelId: 'RL-9248', grnNumber: 'GRN-2609-0195', materialType: 'PP', thicknessMicrons: 176, deckleWidthMm: 620, grossWeightKg: 260.0, netWeightKg: 260.0, qcStatus: 'REJECTED', storageLocation: 'Rejected Area R1', receivedOn: '2026-09-07', supplier: 'Nova Films' },
-  { reelId: 'RL-9251', grnNumber: 'GRN-2609-0199', materialType: 'PVC', thicknessMicrons: 452, deckleWidthMm: 640, grossWeightKg: 520.0, netWeightKg: 520.0, qcStatus: 'APPROVED', storageLocation: 'QC Approved, Rack B1', receivedOn: '2026-09-08', supplier: 'Supreme Polymers' },
-  { reelId: 'RL-9253', grnNumber: 'GRN-2609-0201', materialType: 'HIPS', thicknessMicrons: 279, deckleWidthMm: 620, grossWeightKg: 610.0, netWeightKg: 74.9, qcStatus: 'APPROVED', storageLocation: 'QC Approved, Rack A1', receivedOn: '2026-09-08', supplier: 'Kaira Extrusions' },
-  { reelId: 'RL-9256', grnNumber: 'GRN-2609-0204', materialType: 'PP', thicknessMicrons: 401, deckleWidthMm: 620, grossWeightKg: 900.0, netWeightKg: 34.7, qcStatus: 'APPROVED', storageLocation: 'QC Approved, Rack B2', receivedOn: '2026-09-09', supplier: 'Gujarat Polyfilms' },
-  { reelId: 'RL-9258', grnNumber: 'GRN-2609-0206', materialType: 'PET', thicknessMicrons: 598, deckleWidthMm: 600, grossWeightKg: 380.0, netWeightKg: 380.0, qcStatus: 'QUARANTINE', storageLocation: 'Hold Bin H2', receivedOn: '2026-09-09', supplier: 'Nova Films' },
-]
+/* Reel stock is not kept here. A reel exists because it arrived on a goods
+   receipt, so the register is derived from those lines: see data/reels.ts. */
 
 export const MACHINES: Machine[] = [
   { machineId: 'MC1', machineCode: 'TF-01', machineName: 'Forming Line 1', type: 'FORMING', bedLengthMm: 600, bedWidthMm: 600, sheetsPerStroke: 1, strokesPerMin: 18, status: 'RUNNING' },

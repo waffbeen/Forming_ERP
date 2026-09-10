@@ -4,7 +4,7 @@ import * as React from 'react'
 import { SelectWithCreate } from '@/components/ui'
 import type { SelectOption } from '@/components/ui'
 import {
-  ArtworkModal, CustomerModal, DieModal, MachineModal, MaterialModal, OperatorModal, ReelModal,
+  ArtworkModal, CustomerModal, DieModal, MachineModal, MaterialModal, OperatorModal,
 } from './master-modals'
 import { CategoryModal, ItemModal, ProcessModal, ProductModal, SupplierModal } from './business-modals'
 import { BinModal, EmployeeModal, UserModal } from './system-modals'
@@ -62,7 +62,7 @@ export const ArtworkPicker = picker('New artwork', ArtworkModal)
 export const MaterialPicker = picker('New material grade', MaterialModal)
 export const MachinePicker = picker('New machine', MachineModal)
 export const DiePicker = picker('New die', DieModal)
-export const ReelPicker = picker('New reel', ReelModal)
+/* No reel picker: a reel is created by receiving it, not from a dropdown. */
 export const ItemPicker = picker('New item', ItemModal)
 export const CategoryPicker = picker('New category', CategoryModal)
 export const ProductPicker = picker('New product', ProductModal)

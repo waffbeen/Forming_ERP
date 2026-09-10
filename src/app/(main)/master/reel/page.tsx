@@ -2,7 +2,6 @@
 
 import { MasterPage } from '@/components/layout'
 import { Column, StackedCell } from '@/components/ui'
-import { ReelModal } from '@/components/modals'
 import { QcStatusBadge } from '@/lib/shared-ui'
 import { REELS } from '@/data'
 import { PLANT } from '@/config/plant'
@@ -37,11 +36,6 @@ const columns: Column<Reel>[] = [
 ]
 
 export default function ReelMasterPage() {
-  const approved = REELS.filter((r) => r.qcStatus === 'APPROVED')
-  const availableKg = approved.reduce((s, r) => s + r.netWeightKg, 0)
-  const quarantined = REELS.filter((r) => r.qcStatus === 'QUARANTINE')
-  const rejected = REELS.filter((r) => r.qcStatus === 'REJECTED')
-
   return (
     <MasterPage
       title="Reel Stock"
@@ -49,7 +43,6 @@ export default function ReelMasterPage() {
       rows={REELS}
       columns={columns}
       rowKey={(r) => r.reelId}
-      createModal={(props) => <ReelModal {...props} />}
     />
   )
 }
