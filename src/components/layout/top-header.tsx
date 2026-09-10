@@ -9,6 +9,14 @@ import { useTheme } from '@/components/providers/theme-provider'
 import { ThemePicker } from './theme-picker'
 import { formatNumber } from '@/lib/utils'
 
+/**
+ * The bar over every screen.
+ *
+ * It carries four things and nothing else: where you are, what you are looking
+ * for, when the plant is, and who is signed in. Everything on it is a pill —
+ * the same soft shape the panels underneath use — so the chrome reads as one
+ * piece of software rather than a strip bolted above the content.
+ */
 export function TopHeader({
   onToggleSidebar,
   onToggleMobileNav,
@@ -32,13 +40,16 @@ export function TopHeader({
   React.useEffect(() => setHour(new Date().getHours()), [])
   const date = workingDate()
 
+  const iconButton =
+    'grid h-9 w-9 shrink-0 place-items-center rounded-full text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg-default'
+
   return (
-    <header className="z-40 flex h-[52px] shrink-0 items-center gap-3 border-b border-bd-default bg-bg-header px-3 md:px-4">
+    <header className="z-40 flex h-14 shrink-0 items-center gap-2 border-b border-bd-subtle bg-bg-header px-3 md:gap-3 md:px-4">
       <button
         type="button"
         onClick={onToggleMobileNav}
         aria-label="Open navigation"
-        className="grid h-8 w-8 place-items-center rounded-md text-fg-muted hover:bg-bg-hover hover:text-fg-default lg:hidden"
+        className={`${iconButton} lg:hidden`}
       >
         <Menu className="h-4 w-4" />
       </button>
@@ -47,18 +58,22 @@ export function TopHeader({
         type="button"
         onClick={onToggleSidebar}
         aria-label="Toggle navigation"
-        className="hidden h-8 w-8 place-items-center rounded-md text-fg-muted hover:bg-bg-hover hover:text-fg-default lg:grid"
+        className={`hidden ${iconButton} lg:grid`}
       >
         <PanelLeft className="h-4 w-4" />
       </button>
 
-      <span className="hidden items-center gap-2 rounded-md border border-bd-default bg-bg-subtle px-2.5 py-1 text-xs sm:inline-flex">
-        <Factory className="h-3.5 w-3.5 text-fg-muted" />
+      {/* Where you are. */}
+      <span className="hidden items-center gap-2 rounded-full bg-primary-subtle py-1.5 pl-2 pr-3.5 text-xs sm:inline-flex">
+        <span className="grid h-5 w-5 place-items-center rounded-full bg-bg-surface/70">
+          <Factory className="h-3 w-3 text-primary" />
+        </span>
         <b className="font-semibold">{PLANT.unitName}</b>
         <span className="text-fg-muted">{formatNumber(PLANT.areaSqFt)} sq ft</span>
       </span>
 
-      <label className="hidden max-w-[320px] flex-1 items-center gap-2 rounded-md border border-bd-default bg-bg-subtle px-2.5 py-1.5 text-xs focus-within:border-primary md:inline-flex">
+      {/* What you are looking for. */}
+      <label className="hidden h-9 max-w-[380px] flex-1 items-center gap-2 rounded-full border border-transparent bg-bg-subtle px-3.5 text-xs transition-colors focus-within:border-primary focus-within:bg-bg-surface md:inline-flex">
         <Search className="h-3.5 w-3.5 shrink-0 text-fg-subtle" />
         <input
           type="search"
@@ -70,11 +85,14 @@ export function TopHeader({
 
       <div className="flex-1" />
 
+      {/* When the plant is. The dot is the shift actually on. */}
       <span
-        className="hidden border-l border-bd-default pl-3 text-2xs uppercase tracking-[0.06em] text-fg-muted lg:inline"
-        title={`Working date ${date}`}
+        className="hidden items-center gap-2 rounded-full bg-bg-subtle py-1.5 pl-2.5 pr-3 text-xs lg:inline-flex"
+        title={`Records to ${date}`}
       >
-        {hour === null ? shortDate(date) : `Shift ${shiftAt(hour)} · ${shortDate(date)}`}
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
+        <b className="font-semibold">{hour === null ? '—' : `Shift ${shiftAt(hour)}`}</b>
+        <span className="text-fg-muted">{shortDate(date)}</span>
       </span>
 
       <ThemePicker />
@@ -83,16 +101,23 @@ export function TopHeader({
         type="button"
         onClick={toggleMode}
         aria-label={mode === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-        className="grid h-[30px] w-[30px] place-items-center rounded-md border border-bd-default bg-bg-surface text-fg-muted hover:bg-bg-hover hover:text-fg-default"
+        className={iconButton}
       >
-        {mode === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+        {mode === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </button>
 
+      {/* Who is signed in — named, not just an initialled circle. */}
       <span
-        className="grid h-[29px] w-[29px] shrink-0 place-items-center rounded-full bg-primary text-2xs font-semibold text-on-primary"
+        className="flex shrink-0 items-center gap-2.5 rounded-full py-1 pl-1 pr-1 sm:bg-bg-subtle sm:pr-3.5"
         title={`${hour === null ? 'Signed in' : greetingAt(hour)}, ${user.userName} · ${user.designation}`}
       >
-        {initials}
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-2xs font-semibold text-on-primary">
+          {initials}
+        </span>
+        <span className="hidden min-w-0 leading-tight sm:block">
+          <span className="block truncate text-xs font-semibold">{user.userName}</span>
+          <span className="block truncate text-2xs text-fg-muted">{user.designation}</span>
+        </span>
       </span>
     </header>
   )

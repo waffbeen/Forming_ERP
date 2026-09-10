@@ -34,15 +34,15 @@ export function ThemePicker() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Change colour theme"
-        className="grid h-[30px] w-[30px] place-items-center rounded-md border border-bd-default bg-bg-surface text-fg-muted hover:bg-bg-hover hover:text-fg-default"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg-default"
       >
-        <Palette className="h-3.5 w-3.5" />
+        <Palette className="h-4 w-4" />
       </button>
 
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-40 mt-1.5 w-60 animate-slide-up rounded-lg border border-bd-default bg-bg-surface p-1.5 shadow-lg"
+          className="absolute right-0 z-40 mt-1.5 w-60 animate-slide-up rounded-xl border border-bd-default bg-bg-surface p-1.5 shadow-lg"
         >
           <p className="label-caps px-2 py-1.5">Colour theme</p>
           {VARIANTS.map((v) => {
