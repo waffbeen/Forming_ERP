@@ -98,3 +98,37 @@
     background-color: rgb(var(--fg-default) / 0.28);
   }
 }
+
+/* ------------------------------------------------------------
+   Modal header
+
+   The library stacks the subtitle under the title, which costs a
+   line of height on every screen and reads as two separate
+   thoughts. The document number belongs beside the name of the
+   record, not beneath it, so the wrapper is laid out in a row.
+   It carries no class of its own, hence the match on the title
+   it contains.
+   ------------------------------------------------------------ */
+
+[role='dialog'] div:has(> h2.text-lg.font-semibold) {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+[role='dialog'] div:has(> h2.text-lg.font-semibold) > p {
+  margin-top: 0;
+}
+
+/* A separator, so the two read as one line rather than run together. */
+[role='dialog'] div:has(> h2.text-lg.font-semibold) > p::before {
+  content: '·';
+  margin-right: 0.5rem;
+}
+
+/* The library hardcodes a blue gradient here, which ignores the theme. */
+[role='dialog'] .bg-gradient-to-r.from-blue-50.to-indigo-50 {
+  background-image: none;
+  background-color: rgb(var(--bg-subtle));
+}
