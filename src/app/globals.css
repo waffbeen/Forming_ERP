@@ -44,7 +44,7 @@
 
 @layer components {
   .panel {
-    @apply bg-bg-surface border border-bd-default rounded-lg overflow-hidden;
+    @apply bg-bg-surface border border-bd-default rounded-xl overflow-hidden;
   }
 
   .panel-head {
