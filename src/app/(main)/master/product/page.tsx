@@ -1,6 +1,5 @@
 'use client'
 
-import { Boxes, Package, Repeat, Warehouse } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Column, StackedCell } from '@/components/ui'
 import { ProductModal } from '@/components/modals'
@@ -90,12 +89,6 @@ export default function ProductMasterPage() {
     <MasterPage
       title="Products"
       entityName="product"
-      stats={[
-        { label: 'Products on the master', value: String(PRODUCTS.length), note: `${repeats.length} produced more than once`, icon: Package },
-        { label: 'Repeat rate', value: formatNumber((repeats.length / PRODUCTS.length) * 100, 0), unit: '%', note: 'Reused rather than re-costed', noteTone: 'good', icon: Repeat },
-        { label: 'Lifetime pieces', value: formatNumber(totalPieces / 100000, 1), unit: 'lakh', note: 'Across every run on record', icon: Boxes },
-        { label: 'Safety stock lines', value: String(safetyStock.length), note: belowSafety.length ? `${belowSafety.length} below level` : 'All at level', noteTone: belowSafety.length ? 'warn' : 'good', icon: Warehouse },
-      ]}
       rows={PRODUCTS}
       columns={columns}
       rowKey={(r) => r.productId}

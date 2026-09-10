@@ -1,6 +1,5 @@
 'use client'
 
-import { Award, Clock, Truck, XCircle } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Chip, Column, StackedCell } from '@/components/ui'
 import { SupplierModal } from '@/components/modals'
@@ -63,12 +62,6 @@ export default function SupplierMasterPage() {
     <MasterPage
       title="Suppliers"
       entityName="supplier"
-      stats={[
-        { label: 'Active suppliers', value: String(active.length), note: `${polymer.length} approved for polymer`, icon: Truck },
-        { label: 'Average lead time', value: formatNumber(avgLead, 1), unit: 'days', note: 'Planning buffer for reel requisitions', icon: Clock },
-        { label: 'Below 90 % first pass', value: String(underperforming.length), note: underperforming[0]?.supplierName ?? 'None', noteTone: underperforming.length ? 'bad' : 'good', icon: XCircle },
-        { label: 'Best rated', value: formatNumber(Math.max(...active.map((s) => s.qualityRatingPct)), 1), unit: '%', note: 'Ambica Packaging', noteTone: 'good', icon: Award },
-      ]}
       rows={SUPPLIERS}
       columns={columns}
       rowKey={(r) => r.supplierId}

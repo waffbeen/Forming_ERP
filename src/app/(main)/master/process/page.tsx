@@ -1,11 +1,10 @@
 'use client'
 
-import { Lock, Route, Timer, Wrench } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Chip, Column, StackedCell } from '@/components/ui'
 import { ProcessModal } from '@/components/modals'
 import { PROCESSES } from '@/data'
-import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'
+import { formatCurrency, formatPercent } from '@/lib/utils'
 import type { Process, ProcessStage } from '@/types/masters'
 
 const STAGE_TONE: Record<ProcessStage, 'primary' | 'info' | 'success' | 'warning' | 'muted'> = {
@@ -80,12 +79,6 @@ export default function ProcessMasterPage() {
     <MasterPage
       title="Processes"
       entityName="process"
-      stats={[
-        { label: 'Process steps', value: String(PROCESSES.length), note: 'Sequenced end to end', icon: Route },
-        { label: 'QC-gated steps', value: String(gated.length), note: 'Cannot start without clearance', noteTone: 'warn', icon: Lock },
-        { label: 'Standard route time', value: formatNumber(totalMins / 60, 1), unit: 'hours', note: 'For a typical job', icon: Timer },
-        { label: 'Conversion cost', value: formatNumber(conversionPerPc, 2), unit: '₹ / pc', note: 'Piece-rated steps combined', icon: Wrench },
-      ]}
       rows={PROCESSES}
       columns={columns}
       rowKey={(r) => r.processId}

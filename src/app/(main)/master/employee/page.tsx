@@ -1,11 +1,9 @@
 'use client'
 
-import { ClipboardCheck, HardHat, IdCard, Users } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Chip, Column, StackedCell } from '@/components/ui'
 import { EmployeeModal } from '@/components/modals'
 import { EMPLOYEES, USERS } from '@/data'
-import { PLANT } from '@/config/plant'
 import { formatDate } from '@/lib/utils'
 import type { Employee } from '@/types/masters'
 
@@ -87,12 +85,6 @@ export default function EmployeeMasterPage() {
     <MasterPage
       title="Employees"
       entityName="employee"
-      stats={[
-        { label: 'Employees on record', value: String(EMPLOYEES.length), note: `Of ${PLANT.headcount} on site`, icon: IdCard },
-        { label: 'Production', value: String(production.length), note: 'Certified per machine', icon: HardHat },
-        { label: 'Quality', value: String(quality.length), note: 'Inspectors and QA', icon: ClipboardCheck },
-        { label: 'Can sign gates', value: String(canSignGates.length), note: 'Line clearance, FPA, COA', noteTone: 'good', icon: Users },
-      ]}
       rows={EMPLOYEES}
       columns={columns}
       rowKey={(r) => r.employeeId}

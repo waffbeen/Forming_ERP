@@ -1,6 +1,6 @@
 'use client'
 
-import { KeyRound, ShieldAlert, UserCheck, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Column, StackedCell } from '@/components/ui'
 import { UserModal } from '@/components/modals'
@@ -83,12 +83,6 @@ export default function UserMasterPage() {
     <MasterPage
       title="Users"
       entityName="user"
-      stats={[
-        { label: 'Active users', value: String(active.length), note: `${USERS.length} on the master`, icon: Users },
-        { label: 'Administrators', value: String(admins.length), note: admins.map((a) => a.userName).join(', '), noteTone: 'warn', icon: ShieldAlert },
-        { label: 'Password reset due', value: String(pendingReset.length), note: pendingReset.length ? 'Must reset at next sign-in' : 'None outstanding', noteTone: pendingReset.length ? 'warn' : 'good', icon: KeyRound },
-        { label: 'Without employee record', value: String(unlinked.length), note: unlinked.length ? 'Cannot sign shop-floor records' : 'All linked', icon: UserCheck },
-      ]}
       rows={USERS}
       columns={columns}
       rowKey={(r) => r.userId}

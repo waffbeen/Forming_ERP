@@ -111,3 +111,46 @@ export const LINE_CLEARANCE_AREAS = [
   'Inspection Table Cleared',
   "Previous Job's Inputs Cleared",
 ] as const
+
+/**
+ * The forming window to hold the heater tunnel inside for a given polymer.
+ *
+ * SOP DF/PRD/SOP-09 4.2.2 names PS, PET and PP only. HIPS is a polystyrene and
+ * is run on the PS profile. PVC has no window in the SOP, so a PVC run is
+ * logged without a band rather than being judged against an invented one.
+ */
+export function formingWindowFor(material: string | undefined) {
+  if (material === 'PET') return FORMING_TEMPERATURE_C.PET
+  if (material === 'PP') return FORMING_TEMPERATURE_C.PP
+  if (material === 'HIPS' || material === 'PS') return FORMING_TEMPERATURE_C.PS
+  return null
+}
+
+/** Hourly in-process check columns on both quality formats, after the FPA column. */
+export const IN_PROCESS_CHECK_COUNT = 9
+
+/**
+ * Where a non-conformance was caught. Every QC gate in the plant can raise one,
+ * which is what makes the register the single place a supervisor answers to.
+ */
+export const NC_SOURCES = [
+  'Incoming QC (IQC)',
+  'Line clearance',
+  'First piece approval',
+  'In-process check',
+  'Sorting',
+  'Finished goods inspection',
+  'Customer complaint',
+] as const
+
+/** What was done with the affected material, per SOP 4.6.2 / 5.5. */
+export const NC_DISPOSITIONS = [
+  'Rework',
+  'Reject to recycling',
+  'Use as is (concession)',
+  'Return to supplier',
+  'Scrap',
+] as const
+
+export type NcSource = (typeof NC_SOURCES)[number]
+export type NcDisposition = (typeof NC_DISPOSITIONS)[number]

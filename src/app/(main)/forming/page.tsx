@@ -101,20 +101,6 @@ export default function FormingPage() {
         }
       />
 
-      <StatsGrid>
-        <StatsCard label="Runs today" value={String(FORMING_LOGS.length)} note="Across TF-01 and TF-02" icon={Flame} />
-        <StatsCard label="Formed sheets" value={formatNumber(sheetsToday)} note="Counted off machine strokes" icon={Gauge} />
-        <StatsCard label="Reel consumed" value={formatNumber(consumedToday, 1)} unit="kg" note="Issued less returned" icon={Weight} />
-        <StatsCard
-          label="Returned to store"
-          value={formatNumber(returnedToday, 1)}
-          unit="kg"
-          note="Balance credited back to reel stock"
-          noteTone="good"
-          icon={Weight}
-        />
-      </StatsGrid>
-
       <>
         <div className="flex flex-col gap-3.5">
           <DataTable

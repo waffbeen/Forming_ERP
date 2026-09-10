@@ -1,10 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import { Check, Minus, Plus, SlidersHorizontal, ToggleLeft, Upload, Users } from 'lucide-react'
+import { Check, Minus, Plus, Upload, Users } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, StackedCell, StatsCard, StatsGrid,
+  Badge, Button, Column, DataTable, StackedCell,
 } from '@/components/ui'
 import { DetailModal, ModuleModal } from '@/components/modals'
 import { MODULES, USERS } from '@/data'
@@ -82,13 +82,6 @@ export default function ModuleMasterPage() {
           </>
         }
       />
-
-      <StatsGrid>
-        <StatsCard label="Modules" value={String(MODULES.length)} note={`${enabled.length} enabled`} icon={SlidersHorizontal} />
-        <StatsCard label="Disabled" value={String(MODULES.length - enabled.length)} note="Hidden from every role" noteTone="warn" icon={ToggleLeft} />
-        <StatsCard label="Roles" value={String(ROLES.length)} note="Permissions set per role" icon={Users} />
-        <StatsCard label="Active users" value={String(USERS.filter((u) => u.status === 'ACTIVE').length)} note="Inherit their role's rights" icon={Users} />
-      </StatsGrid>
 
       <>
         <DataTable

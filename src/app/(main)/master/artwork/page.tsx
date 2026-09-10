@@ -1,6 +1,5 @@
 'use client'
 
-import { CheckCircle2, Clock, Palette, Ruler } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Column, StackedCell } from '@/components/ui'
 import { ArtworkModal } from '@/components/modals'
@@ -77,18 +76,6 @@ export default function ArtworkMasterPage() {
     <MasterPage
       title="Artwork Master"
       entityName="artwork"
-      stats={[
-        { label: 'Artwork codes', value: String(ARTWORKS.length), note: 'Across nine customers', icon: Palette },
-        { label: 'Drawing approved', value: String(approved), note: 'Cleared for job card release', noteTone: 'good', icon: CheckCircle2 },
-        { label: 'Awaiting approval', value: String(ARTWORKS.length - approved), note: 'Blocks costing lock', noteTone: 'warn', icon: Clock },
-        {
-          label: 'Bed size',
-          value: `${PLANT.bedLengthMm} × ${PLANT.bedWidthMm}`,
-          unit: 'mm',
-          note: 'Ups are nested against this',
-          icon: Ruler,
-        },
-      ]}
       rows={ARTWORKS}
       columns={columns}
       rowKey={(r) => r.artworkId}

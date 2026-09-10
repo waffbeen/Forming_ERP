@@ -2,17 +2,19 @@
 
 import * as React from 'react'
 import {
-  ArrowRight, Boxes, Download, FileText, Lock, PackageCheck, Recycle, Truck, Trash2,
+  ArrowRight, Download, FileText, Lock, PackageCheck, Recycle, Truck,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import { DetailModal } from '@/components/modals'
 import {
-  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, Tabs,
 } from '@/components/ui'
 import { ReconciliationBar } from '@/components/forming'
-import { COAS, FORMING_LOGS, JOB_CARDS, PACKING_RECORDS, SCRAP_ENTRIES } from '@/data'
+import {
+  COAS, FORMING_LOGS, JOB_CARDS, PACKING_RECORDS, SCRAP_ENTRIES, openNcsFor,
+} from '@/data'
 import { reconcileJob } from '@/lib/reconcile'
-import { formatCurrency, formatKg, formatNumber, formatPercent } from '@/lib/utils'
+import { formatCurrency, formatKg, formatNumber } from '@/lib/utils'
 import type { PackingRecord } from '@/types'
 
 const TABS = [
@@ -46,6 +48,10 @@ export default function PackingPage() {
   const recycledToday = SCRAP_ENTRIES.reduce((s, e) => s + e.totalKg, 0)
 
   const coaReleased = Boolean(coa?.releasedOn)
+  /* A certificate is not the only thing holding a dispatch: a finding still open
+     against the job holds it too, and the gate says which. */
+  const openNcs = openNcsFor(selected.jobCardNo)
+  const dispatchClear = coaReleased && openNcs.length === 0
   const invoiceValue = job ? selected.goodPiecesQty * 2.13 : 0
 
   const columns: Column<PackingRecord>[] = [
@@ -100,25 +106,12 @@ export default function PackingPage() {
         actions={
           <>
             <Button icon={Download}>Export</Button>
-            <Button variant="primary" icon={ArrowRight} disabled={!coaReleased}>
+            <Button variant="primary" icon={ArrowRight} disabled={!dispatchClear}>
               Raise Dispatch
             </Button>
           </>
         }
       />
-
-      <StatsGrid>
-        <StatsCard label="Good pieces packed" value={formatNumber(packedToday)} note="Sorted, counted and inspected" icon={PackageCheck} />
-        <StatsCard
-          label="Rejects at packing"
-          value={formatNumber(rejectsToday)}
-          note={`${formatPercent((rejectsToday / (packedToday + rejectsToday)) * 100, 2)} of packed output`}
-          noteTone="warn"
-          icon={Trash2}
-        />
-        <StatsCard label="To recycling" value={formatNumber(recycledToday, 1)} unit="kg" note="Skeleton plus rejects" icon={Recycle} />
-        <StatsCard label="Cartons ready" value={formatNumber(cartonsToday)} note="Across four job cards" icon={Boxes} />
-      </StatsGrid>
 
       <div className="mb-3">
         <Tabs tabs={TABS} activeId={tab} onChange={setTab} />
@@ -176,21 +169,31 @@ export default function PackingPage() {
 
             <Divider />
 
-            {coaReleased ? null : (
-            <>
-            <div className="flex items-start gap-3 rounded-md border border-error/35 bg-error-subtle p-3">
-            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-error" />
-            <div>
-            <h5 className="text-sm font-semibold text-error">Dispatch held</h5>
-            <p className="mt-0.5 text-xs text-fg-muted">
-            The gate pass releases only once the COA is signed against the finished-goods inspection report.
-            </p>
-            </div>
-            </div>
-            <Button variant="primary" disabled className="mt-3 w-full justify-center">
-            Release gate pass
-            </Button>
-            </>
+            {dispatchClear ? null : (
+              <>
+                <div className="flex items-start gap-3 rounded-md border border-error/35 bg-error-subtle p-3">
+                  <Lock className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+                  <div>
+                    <h5 className="text-sm font-semibold text-error">Dispatch held</h5>
+                    <ul className="mt-1 space-y-0.5 text-xs text-fg-muted">
+                      {coaReleased ? null : (
+                        <li>
+                          The COA is not signed against the finished-goods inspection report.
+                        </li>
+                      )}
+                      {openNcs.map((nc) => (
+                        <li key={nc.ncId}>
+                          <span className="font-mono">{nc.ncNumber}</span> is still open against this job ·{' '}
+                          {nc.parameter}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <Button variant="primary" disabled className="mt-3 w-full justify-center">
+                  Release gate pass
+                </Button>
+              </>
             )}
           </DetailModal>
 

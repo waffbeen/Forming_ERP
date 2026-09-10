@@ -4,6 +4,7 @@ import {
   Scissors, ShieldCheck, Stamp, Tags, Truck, Users, Warehouse, SlidersHorizontal,
   ClipboardList as PrIcon, ShoppingCart, PackagePlus, Boxes as StockIcon,
   Gauge, CheckSquare, ListChecks, MessageSquareQuote, Calculator,
+  ClipboardCheck, ArrowRightLeft, ShieldAlert, FileCheck2, TriangleAlert,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -49,12 +50,22 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Requisitions', href: '/procurement/requisition', icon: PrIcon, badge: '3' },
       { label: 'Purchase Orders', href: '/procurement/purchase-order', icon: ShoppingCart, badge: '5' },
       { label: 'Goods Receipt', href: '/procurement/grn', icon: PackagePlus, badge: '6' },
+      { label: 'Material Issue', href: '/inventory/material-issue', icon: ArrowRightLeft },
       { label: 'Inventory', href: '/inventory', icon: StockIcon },
     ],
   },
   {
+    /* One item per check, in the order the material meets them. */
     title: 'Quality',
-    items: [{ label: 'Quality Control', href: '/quality', icon: ShieldCheck, badge: '6' }],
+    items: [
+      { label: 'Quality Overview', href: '/quality', icon: ShieldCheck },
+      { label: 'RM QC Approval', href: '/quality/rm-qc', icon: ClipboardCheck, badge: '3' },
+      { label: 'Line Clearance', href: '/quality/line-clearance', icon: ShieldAlert, badge: '2' },
+      { label: 'In-Process Checks', href: '/quality/in-process', icon: Gauge },
+      { label: 'FG & COA', href: '/quality/fg-coa', icon: FileCheck2 },
+      /* Every gate above raises into this one register. */
+      { label: 'Non-Conformance', href: '/quality/nc', icon: TriangleAlert, badge: '2' },
+    ],
   },
   {
     title: 'Fulfilment',

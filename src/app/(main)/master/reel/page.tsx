@@ -1,6 +1,5 @@
 'use client'
 
-import { AlertTriangle, CheckCircle2, Disc3, Weight } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Column, StackedCell } from '@/components/ui'
 import { ReelModal } from '@/components/modals'
@@ -47,24 +46,6 @@ export default function ReelMasterPage() {
     <MasterPage
       title="Reel Stock"
       entityName="reel"
-      stats={[
-        { label: 'Reels on hand', value: String(REELS.length), note: `${approved.length} in the approved bin`, icon: Disc3 },
-        { label: 'Available stock', value: formatNumber(availableKg, 1), unit: 'kg', note: 'Net of what is on the floor', icon: Weight },
-        {
-          label: 'In quarantine',
-          value: String(quarantined.length),
-          note: 'Held pending IQC decision',
-          noteTone: 'warn',
-          icon: AlertTriangle,
-        },
-        {
-          label: 'Rejected',
-          value: String(rejected.length),
-          note: `Below the ${PLANT.minMicrons} µm floor`,
-          noteTone: 'bad',
-          icon: CheckCircle2,
-        },
-      ]}
       rows={REELS}
       columns={columns}
       rowKey={(r) => r.reelId}

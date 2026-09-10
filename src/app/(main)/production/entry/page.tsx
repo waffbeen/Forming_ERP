@@ -1,10 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { AlertTriangle, Gauge, Timer, TrendingUp } from 'lucide-react'
 import { PageHeader, Note } from '@/components/layout'
 import {
-  Badge, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Column, DataTable, Divider, SpecList, StackedCell, Tabs,
 } from '@/components/ui'
 import { DetailModal } from '@/components/modals'
 import { EMPLOYEES, PRODUCTION_ENTRIES, USERS, WORK_ORDERS, remainingQty } from '@/data'
@@ -121,13 +120,6 @@ export default function ProductionEntryPage() {
   return (
     <>
       <PageHeader eyebrow="Production" title="Production Entry" />
-
-      <StatsGrid>
-        <StatsCard label="Entries logged" value={String(PRODUCTION_ENTRIES.length)} note={`${running.length} still running`} icon={Gauge} />
-        <StatsCard label="Output booked" value={formatNumber(produced)} note="Across every work order unit" icon={TrendingUp} />
-        <StatsCard label="Rejected" value={formatNumber(rejected)} note="Set aside at the machine" noteTone="warn" icon={AlertTriangle} />
-        <StatsCard label="Downtime" value={String(downtime)} unit="min" note="Logged against a reason" noteTone={downtime > 0 ? 'warn' : 'good'} icon={Timer} />
-      </StatsGrid>
 
       <DataTable
         title="Shift entries"

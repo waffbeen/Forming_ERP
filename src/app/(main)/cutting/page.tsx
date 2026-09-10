@@ -89,25 +89,6 @@ export default function CuttingPage() {
         }
       />
 
-      <StatsGrid>
-        <StatsCard label="Sheets cut" value={formatNumber(sheetsToday)} note="Fed from forming output" icon={Layers} />
-        <StatsCard label="Good pieces" value={formatNumber(piecesToday)} note="Defect-free trays" icon={Scissors} />
-        <StatsCard
-          label="Rejects"
-          value={formatNumber(rejectsToday)}
-          note={`${formatPercent((rejectsToday / (piecesToday + rejectsToday)) * 100, 2)} of output`}
-          noteTone="warn"
-          icon={Trash2}
-        />
-        <StatsCard
-          label="Skeleton generated"
-          value={formatNumber(skeletonToday, 1)}
-          unit="kg"
-          note="All of it routed to recycling"
-          icon={Trash2}
-        />
-      </StatsGrid>
-
       <>
         <DataTable
           title="Cutting run log"

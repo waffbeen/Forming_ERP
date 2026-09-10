@@ -1,6 +1,5 @@
 'use client'
 
-import { FolderTree, Package, ScanBarcode, Tags } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Column, StackedCell } from '@/components/ui'
 import { CategoryModal } from '@/components/modals'
@@ -73,12 +72,6 @@ export default function CategoryMasterPage() {
     <MasterPage
       title="Categories"
       entityName="category"
-      stats={[
-        { label: 'Categories', value: String(CATEGORIES.length), note: `${topLevel.length} at top level`, icon: Tags },
-        { label: 'Item categories', value: String(itemCats.length), note: `${ITEMS.length} items classified`, icon: ScanBarcode },
-        { label: 'Product categories', value: String(productCats.length), note: `${PRODUCTS.length} products classified`, icon: Package },
-        { label: 'Nesting depth', value: '2', note: 'Parent and child only', icon: FolderTree },
-      ]}
       rows={CATEGORIES}
       columns={columns}
       rowKey={(r) => r.categoryId}

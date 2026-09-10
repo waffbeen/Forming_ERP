@@ -1,6 +1,5 @@
 'use client'
 
-import { CalendarClock, Hash, ListOrdered, RotateCcw } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Column, StackedCell } from '@/components/ui'
 import { PrefixModal } from '@/components/modals'
@@ -58,12 +57,6 @@ export default function PrefixMasterPage() {
     <MasterPage
       title="Document Prefixes"
       entityName="prefix"
-      stats={[
-        { label: 'Numbering rules', value: String(DOCUMENT_PREFIXES.length), note: 'One per document type', icon: Hash },
-        { label: 'Reset annually', value: String(resetting.length), note: 'Series restarts on 1 April', icon: RotateCcw },
-        { label: 'Run continuously', value: String(DOCUMENT_PREFIXES.length - resetting.length), note: 'Artwork and product codes', icon: ListOrdered },
-        { label: 'Issued this year', value: formatNumber(issuedThisYear), note: 'Across resetting series', icon: CalendarClock },
-      ]}
       rows={DOCUMENT_PREFIXES}
       columns={columns}
       rowKey={(r) => r.prefixId}

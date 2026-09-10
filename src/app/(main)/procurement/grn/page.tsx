@@ -1,16 +1,15 @@
 'use client'
 
 import * as React from 'react'
-import { AlertTriangle, CheckCircle2, Clock, PackagePlus, Plus } from 'lucide-react'
+import { ClipboardCheck, Plus } from 'lucide-react'
 import { PageHeader, Note } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, Tabs,
 } from '@/components/ui'
-import { DetailModal, GrnModal } from '@/components/modals'
-import { BINS, GRNS, ITEMS, SUPPLIERS, USERS } from '@/data'
-import { PLANT } from '@/config/plant'
+import { DetailModal, GrnModal, RmQcModal } from '@/components/modals'
+import { BINS, GRNS, ITEMS, SUPPLIERS, USERS, qcReport, rmQcTabsOfGrn } from '@/data'
 import { formatDate, formatNumber } from '@/lib/utils'
-import type { GoodsReceiptNote, GrnLineStatus } from '@/types/procurement'
+import type { GoodsReceiptNote, GrnLineStatus, RmQcTab } from '@/types/procurement'
 
 const QC_TONE: Record<GrnLineStatus, 'muted' | 'warning' | 'success' | 'error'> = {
   PENDING_QC: 'muted',
@@ -38,6 +37,24 @@ const itemOf = (id: string) => ITEMS.find((i) => i.itemId === id)
 const binCode = (id: string | null) => (id ? (BINS.find((b) => b.binId === id)?.binCode ?? '—') : '—')
 const userName = (id: string | null) => (id ? (USERS.find((u) => u.userId === id)?.userName ?? '—') : '—')
 
+/**
+ * Which QC screen this receipt opens on. Anything still to be inspected takes
+ * priority, since that is the one that needs somebody; otherwise it opens
+ * read-only on whichever outcome its lines landed on.
+ */
+function qcTabOf(grn: GoodsReceiptNote): RmQcTab {
+  const tabs = rmQcTabsOfGrn(grn)
+  return (
+    (['PENDING', 'REJECTED', 'HOLD', 'PROCESSED'] as RmQcTab[]).find((t) => tabs.includes(t)) ??
+    'PROCESSED'
+  )
+}
+
+/** Receipts QC never has to touch: no format configured against the item. */
+function isAutoApproved(grn: GoodsReceiptNote) {
+  return rmQcTabsOfGrn(grn).length === 0
+}
+
 /** A GRN takes the worst outcome of its lines, since that is what holds it up. */
 function grnStatus(grn: GoodsReceiptNote): GrnLineStatus {
   const order: GrnLineStatus[] = ['REJECTED', 'QUARANTINE', 'PENDING_QC', 'APPROVED']
@@ -49,6 +66,7 @@ export default function GrnPage() {
   const [createOpen, setCreateOpen] = React.useState(false)
   const [selectedId, setSelectedId] = React.useState(GRNS[0].grnId)
   const [detailOpen, setDetailOpen] = React.useState(false)
+  const [qcOpen, setQcOpen] = React.useState(false)
 
   const rows = React.useMemo(
     () => (tab === 'ALL' ? GRNS : GRNS.filter((g) => g.lines.some((l) => l.qcStatus === tab))),
@@ -77,6 +95,53 @@ export default function GrnPage() {
     },
     { key: 'inspector', header: 'Inspected by', render: (r) => (r.inspectedByUserId ? userName(r.inspectedByUserId) : <span className="text-fg-subtle">Not yet</span>) },
     { key: 'qc', header: 'IQC', sortValue: (r) => grnStatus(r), render: (r) => <Badge tone={QC_TONE[grnStatus(r)]}>{QC_LABEL[grnStatus(r)]}</Badge> },
+    {
+      key: 'report',
+      header: 'QC report',
+      render: (r) => {
+        const numbers = [...new Set(r.lines.map((l) => l.qcNumber).filter(Boolean))]
+        if (isAutoApproved(r)) return <span className="text-xs text-fg-subtle">No format, auto-approved</span>
+        if (numbers.length === 0) return <span className="text-xs text-fg-subtle">Not inspected</span>
+        return <span className="font-mono text-xs">{numbers.join(', ')}</span>
+      },
+    },
+    {
+      key: 'split',
+      header: 'Approved / held / back',
+      render: (r) => {
+        const approved = r.lines.reduce((s, l) => s + l.approvedQty, 0)
+        const held = r.lines.reduce((s, l) => s + l.holdQty, 0)
+        const back = r.lines.reduce((s, l) => s + l.rejectedQty, 0)
+        if (r.lines.every((l) => !l.isQcApproved)) return <span className="text-xs text-fg-subtle">Not inspected</span>
+        return (
+          <span className="font-mono text-xs">
+            <span className="text-success">{formatNumber(approved, 1)}</span>
+            {' / '}
+            <span className={held > 0 ? 'text-warning' : undefined}>{formatNumber(held, 1)}</span>
+            {' / '}
+            <span className={back > 0 ? 'text-error' : undefined}>{formatNumber(back, 1)}</span>
+          </span>
+        )
+      },
+    },
+    {
+      key: 'action',
+      header: '',
+      width: '150px',
+      render: (r) =>
+        isAutoApproved(r) ? null : (
+          <Button
+            variant="quiet"
+            icon={ClipboardCheck}
+            onClick={() => {
+              setSelectedId(r.grnId)
+              setQcOpen(true)
+            }}
+          >
+            {qcTabOf(r) === 'PENDING' ? 'Do QC' : 'QC detail'}
+          </Button>
+        ),
+    },
   ]
 
   return (
@@ -91,20 +156,13 @@ export default function GrnPage() {
         }
       />
 
-      <StatsGrid>
-        <StatsCard label="Receipts booked" value={String(GRNS.length)} note={`${allLines.length} lines in total`} icon={PackagePlus} />
-        <StatsCard label="Awaiting IQC" value={String(pending.length)} note="Cannot enter stock until inspected" noteTone="warn" icon={Clock} />
-        <StatsCard label="Approved into stock" value={formatNumber(receivedKg)} unit="units" note={`${approved.length} lines cleared`} noteTone="good" icon={CheckCircle2} />
-        <StatsCard label="Rejected" value={String(rejected.length)} note={`Below the ${PLANT.minMicrons} µm floor`} noteTone="bad" icon={AlertTriangle} />
-      </StatsGrid>
-
       <>
         <DataTable
           title="Receipt register"
           rows={rows}
           columns={columns}
           rowKey={(r) => r.grnId}
-          mainColumns="grn,po,supplier,qc"
+          mainColumns="grn,po,supplier,qc,action"
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
           selectedKey={selected.grnId}
           onSelect={(r) => setSelectedId(r.grnId)}
@@ -152,6 +210,32 @@ export default function GrnPage() {
                       {line.reelId} · {line.thicknessMicrons} µm · bin {binCode(line.binId)}
                     </p>
                   ) : null}
+                  {line.isQcApproved ? (
+                    <p className="mt-0.5 font-mono text-xs">
+                      <span className="text-success">{formatNumber(line.approvedQty, 1)} approved</span>
+                      {line.holdQty > 0 ? (
+                        <span className="text-warning"> · {formatNumber(line.holdQty, 1)} held</span>
+                      ) : null}
+                      {line.rejectedQty > 0 ? (
+                        <span className="text-error"> · {formatNumber(line.rejectedQty, 1)} back to supplier</span>
+                      ) : null}
+                      {line.qcNumber ? (
+                        <span className="text-fg-muted"> · {line.qcNumber}</span>
+                      ) : (
+                        <span className="text-fg-subtle"> · no QC format, auto-approved</span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-warning">Awaiting inspection, not stock yet</p>
+                  )}
+                  {line.qcNumber && qcReport(line.qcNumber)?.overallResult === 'FAIL' ? (
+                    <p className="mt-0.5 text-xs text-error">
+                      Inspection failed on{' '}
+                      {qcReport(line.qcNumber)
+                        ?.characteristics.filter((c) => c.result === 'FAIL').length}{' '}
+                      characteristics
+                    </p>
+                  ) : null}
                   {line.qcRemarks ? <p className="mt-1 text-xs text-fg-subtle">{line.qcRemarks}</p> : null}
                 </li>
               )
@@ -159,11 +243,18 @@ export default function GrnPage() {
           </ul>
           <Divider />
           <Note>
-            Only a line IQC has approved creates a stock movement, so nothing reaches a bin without a receipt and an
-            inspection behind it.
+            Only the quantity RM QC approved creates a stock movement, so nothing reaches a bin without a receipt and an
+            inspection behind it. Held and rejected quantities never become stock at all.
           </Note>
         </DetailModal>
       </>
+
+      <RmQcModal
+        isOpen={qcOpen}
+        onClose={() => setQcOpen(false)}
+        grn={selected}
+        tab={qcTabOf(selected)}
+      />
 
       <GrnModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
     </>

@@ -1,11 +1,9 @@
 'use client'
 
-import { IndianRupee, Layers, Recycle, Ruler } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Chip, Column, StackedCell } from '@/components/ui'
 import { MaterialModal } from '@/components/modals'
 import { MATERIALS } from '@/data'
-import { PLANT } from '@/config/plant'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import type { MaterialGrade } from '@/types'
 
@@ -60,18 +58,6 @@ export default function MaterialMasterPage() {
     <MasterPage
       title="Material Grades"
       entityName="grade"
-      stats={[
-        { label: 'Polymer grades', value: String(MATERIALS.length), note: 'PVC, PET, HIPS and PP', icon: Layers },
-        {
-          label: 'Thickness floor',
-          value: String(PLANT.minMicrons),
-          unit: 'µm',
-          note: 'Nothing thinner is accepted',
-          icon: Ruler,
-        },
-        { label: 'Average rate', value: formatNumber(avgRate, 0), unit: '₹ / kg', note: 'Weighted across grades', icon: IndianRupee },
-        { label: 'Scrap recovery', value: '100', unit: '%', note: 'Every grade is recyclable', noteTone: 'good', icon: Recycle },
-      ]}
       rows={MATERIALS}
       columns={columns}
       rowKey={(r) => r.materialId}

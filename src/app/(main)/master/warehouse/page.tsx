@@ -1,11 +1,10 @@
 'use client'
 
-import { AlertTriangle, Boxes, Warehouse as WarehouseIcon, Weight } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Column, StackedCell } from '@/components/ui'
 import { BinModal } from '@/components/modals'
 import { BINS, WAREHOUSES } from '@/data'
-import { formatNumber, formatPercent } from '@/lib/utils'
+import { formatNumber } from '@/lib/utils'
 import type { Bin, BinType } from '@/types/masters'
 
 const BIN_LABEL: Record<BinType, string> = {
@@ -78,12 +77,6 @@ export default function WarehouseMasterPage() {
     <MasterPage
       title="Warehouse & Bins"
       entityName="bin"
-      stats={[
-        { label: 'Warehouses', value: String(WAREHOUSES.length), note: `${BINS.length} bins in total`, icon: WarehouseIcon },
-        { label: 'Stock held', value: formatNumber(totalOccupied, 0), unit: 'kg', note: `${formatPercent((totalOccupied / totalCapacity) * 100, 0)} of capacity`, icon: Weight },
-        { label: 'Segregation bins', value: String(segregation.length), note: 'Approved, hold and rejected', icon: Boxes },
-        { label: 'Near capacity', value: String(nearFull.length), note: nearFull[0]?.binCode ?? 'None above 85 %', noteTone: nearFull.length ? 'warn' : 'good', icon: AlertTriangle },
-      ]}
       rows={BINS}
       columns={columns}
       rowKey={(r) => r.binId}

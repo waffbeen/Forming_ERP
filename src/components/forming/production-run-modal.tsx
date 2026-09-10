@@ -2,8 +2,8 @@
 
 import * as React from 'react'
 import {
-  CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, FileText, Flame, Lock,
-  PlayCircle, RotateCcw, StopCircle, Trash2,
+  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, FileText, Flame, Lock,
+  PlayCircle, RotateCcw, StopCircle, Trash2, X,
 } from 'lucide-react'
 import { HeaderSteps } from 'indas-ui'
 import { StandardModal } from '@/components/modals'
@@ -12,16 +12,19 @@ import {
   Badge, Button, Checkbox, DerivedField, FormGrid, FormSection, Input, Select,
 } from '@/components/ui'
 import { ZoneTemperatures } from './zone-temperatures'
+import { ParameterResults } from './parameter-results'
+import { DefectChecklist } from './defect-checklist'
+import type { DefectCheck } from './defect-checklist'
 import {
-  DOCUMENTS, FORMING_DEFECTS, FORMING_TEMPERATURE_C, LINE_CLEARANCE_AREAS, PLANT,
-  CUTTING_DEFECTS,
+  DOCUMENTS, FORMING_DEFECTS, IN_PROCESS_CHECK_COUNT, LINE_CLEARANCE_AREAS, PLANT,
+  CUTTING_DEFECTS, formingWindowFor,
 } from '@/config/plant'
 import { EMPLOYEES, JOB_CARDS, USERS, ZONE_TEMPERATURES } from '@/data'
-import { cn, formatNumber } from '@/lib/utils'
+import { formatNumber } from '@/lib/utils'
 import { discardDraft, listDrafts, loadDraft, saveDraft, savedAgo } from '@/lib/run-drafts'
 import type { RunDraft } from '@/lib/run-drafts'
 import { firstPieceApproved, lineClearanceComplete } from '@/types/run-record'
-import type { ParameterResult, RunLineClearance, RunSection } from '@/types/run-record'
+import type { ParameterResult, RunInProcessCheck, RunLineClearance, RunSection } from '@/types/run-record'
 
 const STEPS = [
   { id: 1, label: 'Job details', icon: FileText },
@@ -30,11 +33,6 @@ const STEPS = [
   { id: 4, label: 'Job start', icon: PlayCircle },
   { id: 5, label: 'In-process', icon: Flame },
   { id: 6, label: 'Job end', icon: StopCircle },
-]
-
-const RESULTS: { value: ParameterResult; label: string; tone: string }[] = [
-  { value: 'OK', label: 'OK', tone: 'border-success bg-success text-fg-inverse' },
-  { value: 'DEFECT', label: 'Defect', tone: 'border-error bg-error text-fg-inverse' },
 ]
 
 function nameOf(employeeId: string) {
@@ -77,6 +75,7 @@ export function ProductionRunModal({
 }) {
   const isForming = section === 'FORMING'
   const parameters = isForming ? FORMING_DEFECTS : CUTTING_DEFECTS
+
   const documentNo = isForming ? DOCUMENTS.productionForming : DOCUMENTS.productionCutting
   const qcDocumentNo = isForming ? DOCUMENTS.qcForming : DOCUMENTS.qcCutting
 
@@ -89,6 +88,8 @@ export function ProductionRunModal({
   const [dieNo, setDieNo] = React.useState('')
   const [rollNo, setRollNo] = React.useState('')
   const job = JOB_CARDS.find((j) => j.jobCardNo === jobCardNo)
+  /** The heater band to hold, for the polymer this job actually runs. */
+  const formingWindow = formingWindowFor(job?.materialType)
 
   // Line clearance
   const [clearance, setClearance] = React.useState<RunLineClearance>({
@@ -115,12 +116,17 @@ export function ProductionRunModal({
   const [heatingMins, setHeatingMins] = React.useState('')
   const [machineStart, setMachineStart] = React.useState('')
 
-  // In-process
-  const [checkCount, setCheckCount] = React.useState(0)
+  // In-process: one signed record per hourly check, not a tally
+  const [checks, setChecks] = React.useState<RunInProcessCheck[]>([])
+  const [draftCheck, setDraftCheck] = React.useState<RunInProcessCheck | null>(null)
 
   // Job end
   const [machineStop, setMachineStop] = React.useState('')
   const [jobEnd, setJobEnd] = React.useState('')
+  const [startCounter, setStartCounter] = React.useState('')
+  const [endCounter, setEndCounter] = React.useState('')
+  const [issuedWeight, setIssuedWeight] = React.useState('')
+  const [returnedWeight, setReturnedWeight] = React.useState('')
   const [cavities, setCavities] = React.useState('')
   const [formedSheets, setFormedSheets] = React.useState('')
   const [makeReady, setMakeReady] = React.useState('')
@@ -152,8 +158,9 @@ export function ProductionRunModal({
   /** Every field on the form in one bag, for keeping and putting back. */
   const collect = () => ({
     shift, dieNo, rollNo, clearance, fpaResults, fpaOperator, fpaQc, afterPowerFailure,
-    dieMountStart, dieMountEnd, heatingMins, machineStart, checkCount,
-    machineStop, jobEnd, cavities, formedSheets, makeReady, wastageSheets,
+    dieMountStart, dieMountEnd, heatingMins, machineStart, checks,
+    machineStop, jobEnd, startCounter, endCounter, issuedWeight, returnedWeight,
+    cavities, formedSheets, makeReady, wastageSheets,
     cutQty, wasteGrams, wasteNos, rejectionAfterSorting, perBag, perBox,
   })
 
@@ -174,9 +181,14 @@ export function ProductionRunModal({
     setDieMountEnd(text(v.dieMountEnd))
     setHeatingMins(text(v.heatingMins))
     setMachineStart(text(v.machineStart))
-    setCheckCount(typeof v.checkCount === 'number' ? v.checkCount : 0)
+    setChecks(Array.isArray(v.checks) ? v.checks : [])
+    setDraftCheck(null)
     setMachineStop(text(v.machineStop))
     setJobEnd(text(v.jobEnd))
+    setStartCounter(text(v.startCounter))
+    setEndCounter(text(v.endCounter))
+    setIssuedWeight(text(v.issuedWeight))
+    setReturnedWeight(text(v.returnedWeight))
     setCavities(text(v.cavities))
     setFormedSheets(text(v.formedSheets))
     setMakeReady(text(v.makeReady))
@@ -256,6 +268,9 @@ export function ProductionRunModal({
     if (step === 2) return clearanceDone ? null : 'All six areas must be checked and both signatures taken'
     if (step === 3) return fpaDone ? null : 'Every parameter must be checked, none a defect, and QC named'
     if (step === 4) return started ? null : 'Enter the machine start time to run the job'
+    if (step === 5 && draftCheck && !draftComplete)
+      return 'Mark every parameter on this check and name the QC executive who signed it'
+    if (step === 6 && returnedOverIssued) return 'Returned reel weight cannot exceed what was issued'
     if (step === 6 && !canSave) return 'Enter the job end time and the quantities produced'
     return null
   }
@@ -264,7 +279,50 @@ export function ProductionRunModal({
     setClearance((c) => ({ ...c, areasChecked: { ...c.areasChecked, [area]: !c.areasChecked[area] } }))
 
   const setParameter = (parameter: string, value: ParameterResult) =>
-    setFpaResults((r) => ({ ...r, [parameter]: r[parameter] === value ? 'NOT_CHECKED' : value }))
+    setFpaResults((r) => ({ ...r, [parameter]: value }))
+
+  /* ------------------------------------------------- In-process checks */
+
+  const startCheck = () =>
+    setDraftCheck({ checkNo: checks.length + 1, time: now(), inspector: '', results: {} })
+
+  const setCheckParameter = (parameter: string, value: ParameterResult) =>
+    setDraftCheck((c) => (c ? { ...c, results: { ...c.results, [parameter]: value } } : c))
+
+  /** A check is only a record once every parameter was looked at and QC signed. */
+  const draftComplete =
+    draftCheck !== null &&
+    Boolean(draftCheck.inspector) &&
+    parameters.every((p) => draftCheck.results[p] && draftCheck.results[p] !== 'NOT_CHECKED')
+
+  const commitCheck = () => {
+    if (!draftCheck || !draftComplete) return
+    setChecks((c) => [...c, draftCheck])
+    setDraftCheck(null)
+  }
+
+  /** Defects found across the shift, which is what a non-conformance is raised on. */
+  const checkDefects = checks.flatMap((c) =>
+    parameters.filter((p) => c.results[p] === 'DEFECT').map((p) => ({ checkNo: c.checkNo, time: c.time, parameter: p })),
+  )
+
+  /* The live grid, in the shape of the paper format: the FPA column, then the
+     checks recorded so far, then the empty slots still to be filled. */
+  const gridChecks: DefectCheck[] = [
+    { id: 'FPA', time: fpaDone ? 'Approved' : '—', inspector: nameOf(fpaQc) || fpaQc, results: fpaResults },
+    ...checks.map((c) => ({
+      id: String(c.checkNo),
+      time: c.time,
+      inspector: nameOf(c.inspector) || c.inspector,
+      results: c.results,
+    })),
+    ...Array.from({ length: Math.max(IN_PROCESS_CHECK_COUNT - checks.length, 0) }, (_, i) => ({
+      id: String(checks.length + i + 1),
+      time: '—',
+      inspector: '',
+      results: {},
+    })),
+  ]
 
   // Derived output, so the operator never adds up what the system can.
   const formedNum = Number(formedSheets) || 0
@@ -276,7 +334,23 @@ export function ProductionRunModal({
   const perBoxNum = Number(perBox) || 0
   const totalBoxes = perBoxNum > 0 ? Math.floor(finalFg / perBoxNum) : 0
 
-  const canSave = started && Boolean(jobEnd) && (isForming ? formedNum > 0 : cutNum > 0)
+  /* Counter strokes and the reel that fed them, from spec table 4. The counter
+     is the machine's own count of sheets run; the reel weights are what the
+     store issued against what came back, and the two have to tell the same
+     story before the run posts. */
+  const counterStrokes = Math.max((Number(endCounter) || 0) - (Number(startCounter) || 0), 0)
+  const issuedKg = Number(issuedWeight) || 0
+  const returnedKg = Number(returnedWeight) || 0
+  const consumedKg = Math.max(issuedKg - returnedKg, 0)
+  const gramsPerSheet = formedNum > 0 && consumedKg > 0 ? (consumedKg * 1000) / formedNum : 0
+  const counterMismatch =
+    isForming && counterStrokes > 0 && formedNum > 0 && Math.abs(counterStrokes - formedNum) > 0
+  const returnedOverIssued = isForming && issuedKg > 0 && returnedKg > issuedKg
+
+  const canSave =
+    started &&
+    Boolean(jobEnd) &&
+    (isForming ? formedNum > 0 && !returnedOverIssued : cutNum > 0)
 
   /* A posted run is finished, so the open copy of it goes. */
   const handleSave = () => {
@@ -523,44 +597,10 @@ export function ProductionRunModal({
           </FormSection>
 
           <FormSection title="Quality parameters">
-            <ul className="space-y-1.5">
-              {parameters.map((parameter) => {
-                const value = fpaResults[parameter] ?? 'NOT_CHECKED'
-                return (
-                  <li
-                    key={parameter}
-                    className="flex items-center gap-3 rounded-md border border-bd-default px-3 py-2"
-                  >
-                    <span className="min-w-0 flex-1 text-sm">{parameter}</span>
-                    <span className="flex shrink-0 gap-1">
-                      {RESULTS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          aria-pressed={value === option.value}
-                          onClick={() => setParameter(parameter, option.value)}
-                          className={cn(
-                            'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
-                            value === option.value
-                              ? option.tone
-                              : 'border-bd-default text-fg-muted hover:bg-bg-hover hover:text-fg-default',
-                          )}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-            <p className="mt-2.5 text-xs text-fg-muted">
-              {parameters.filter((p) => fpaResults[p] && fpaResults[p] !== 'NOT_CHECKED').length} of{' '}
-              {parameters.length} parameters checked
-              {parameters.some((p) => fpaResults[p] === 'DEFECT') ? (
-                <span className="text-error"> · a defect blocks the job from starting</span>
-              ) : null}
-            </p>
+            <ParameterResults parameters={parameters} results={fpaResults} onChange={setParameter} />
+            {parameters.some((p) => fpaResults[p] === 'DEFECT') ? (
+              <p className="mt-1 text-xs text-error">A defect blocks the job from starting.</p>
+            ) : null}
           </FormSection>
         </>
       ) : null}
@@ -596,38 +636,98 @@ export function ProductionRunModal({
           <FormSection title={`In-process checks · ${qcDocumentNo}`}>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-fg-muted">
-                {checkCount} of 9 hourly checks recorded
+                {checks.length} of {IN_PROCESS_CHECK_COUNT} hourly checks recorded
               </span>
               <Button
                 variant="primary"
                 icon={CheckCircle2}
-                disabled={checkCount >= 9}
-                onClick={() => setCheckCount((c) => Math.min(c + 1, 9))}
+                disabled={Boolean(draftCheck) || checks.length >= IN_PROCESS_CHECK_COUNT}
+                onClick={startCheck}
               >
-                Record check {checkCount + 1}
+                Record check {Math.min(checks.length + 1, IN_PROCESS_CHECK_COUNT)}
               </Button>
-              {checkCount > 0 ? (
-                <Button variant="ghost" onClick={() => setCheckCount(0)}>
-                  Reset
-                </Button>
-              ) : null}
             </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {Array.from({ length: 9 }, (_, i) => (
-                <Badge key={i} tone={i < checkCount ? 'success' : 'muted'}>
-                  {i < checkCount ? `Check ${i + 1} done` : `Check ${i + 1}`}
-                </Badge>
-              ))}
-            </div>
+
+            {draftCheck ? (
+              <div className="mt-3 rounded-md border border-bd-strong p-3">
+                <FormGrid cols={3}>
+                  <DerivedField label="Check no" value={String(draftCheck.checkNo)} emphasis />
+                  <Input
+                    label="Time"
+                    type="time"
+                    value={draftCheck.time}
+                    onChange={(e) => setDraftCheck((c) => (c ? { ...c, time: e.target.value } : c))}
+                  />
+                  <EmployeePicker
+                    label="QC sign (verification)"
+                    required
+                    placeholder="Select QC executive"
+                    value={draftCheck.inspector}
+                    onChange={(next) => setDraftCheck((c) => (c ? { ...c, inspector: next } : c))}
+                    options={qcOptions}
+                  />
+                </FormGrid>
+                <div className="mt-3">
+                  <ParameterResults
+                    parameters={parameters}
+                    results={draftCheck.results}
+                    onChange={setCheckParameter}
+                  />
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button variant="primary" icon={CheckCircle2} disabled={!draftComplete} onClick={commitCheck}>
+                    Save check {draftCheck.checkNo}
+                  </Button>
+                  <Button variant="ghost" icon={X} onClick={() => setDraftCheck(null)}>
+                    Discard
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {checkDefects.length > 0 ? (
+              <div className="mt-3 flex items-start gap-3 rounded-md border border-error/35 bg-error-subtle p-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+                <div>
+                  <h5 className="text-sm font-semibold text-error">
+                    {checkDefects.length} defect{checkDefects.length > 1 ? 's' : ''} logged this shift
+                  </h5>
+                  <ul className="mt-1 space-y-0.5 text-xs text-fg-muted">
+                    {checkDefects.map((d) => (
+                      <li key={`${d.checkNo}-${d.parameter}`}>
+                        <span className="font-mono">Check {d.checkNo}, {d.time}</span> · {d.parameter}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1.5 text-xs text-fg-muted">
+                    A non-conformance is raised against this job card when the run posts, for the
+                    supervisor to close out on the NC register.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </FormSection>
+
+          <FormSection title={`Checklist as recorded · ${qcDocumentNo}`}>
+            <DefectChecklist
+              defects={parameters}
+              checks={gridChecks}
+              documentNo={qcDocumentNo}
+              section={isForming ? 'Forming' : 'Cutting'}
+            />
           </FormSection>
 
           {isForming ? (
             <FormSection title={`Zone temperature chart · ${PLANT.heaterZones} zones`}>
-              <ZoneTemperatures
-                readings={ZONE_TEMPERATURES}
-                min={FORMING_TEMPERATURE_C.PET.min}
-                max={FORMING_TEMPERATURE_C.PET.max}
-              />
+              {formingWindow ? (
+                <ZoneTemperatures readings={ZONE_TEMPERATURES} min={formingWindow.min} max={formingWindow.max} />
+              ) : (
+                <div className="rounded-md border border-bd-default p-3 text-sm text-fg-muted">
+                  SOP {DOCUMENTS.sopForming} names a forming window for PS, PET and PP only. A{' '}
+                  {job?.materialType ?? 'this'} run is logged without a band, so the readings are kept
+                  as a record but not judged against limits.
+                </div>
+              )}
             </FormSection>
           ) : null}
         </>
@@ -645,20 +745,72 @@ export function ProductionRunModal({
           </FormSection>
 
           {isForming ? (
-            <FormSection title="Forming output">
-              <FormGrid cols={3}>
-                <Input label="No. of cavity" type="number" value={cavities} onChange={(e) => setCavities(e.target.value)} />
-                <DerivedField label="Order qty" value={job ? `${formatNumber(job.requiredSheetsQty)} sheets` : '—'} />
-                <Input label="Formed qty" unit="sheets" required type="number" value={formedSheets} onChange={(e) => setFormedSheets(e.target.value)} />
-                <Input label="Make ready wastage" unit="sheets" type="number" value={makeReady} onChange={(e) => setMakeReady(e.target.value)} />
-                <Input label="Wastage qty" unit="sheets" type="number" value={wastageSheets} onChange={(e) => setWastageSheets(e.target.value)} />
-                <DerivedField
-                  label="Total qty in numbers"
-                  value={totalPieces > 0 ? formatNumber(totalPieces) : '—'}
-                  emphasis
-                />
-              </FormGrid>
-            </FormSection>
+            <>
+              <FormSection title="Forming output">
+                <FormGrid cols={3}>
+                  <Input label="No. of cavity" type="number" value={cavities} onChange={(e) => setCavities(e.target.value)} />
+                  <DerivedField label="Order qty" value={job ? `${formatNumber(job.requiredSheetsQty)} sheets` : '—'} />
+                  <Input label="Formed qty" unit="sheets" required type="number" value={formedSheets} onChange={(e) => setFormedSheets(e.target.value)} />
+                  <Input label="Make ready wastage" unit="sheets" type="number" value={makeReady} onChange={(e) => setMakeReady(e.target.value)} />
+                  <Input label="Wastage qty" unit="sheets" type="number" value={wastageSheets} onChange={(e) => setWastageSheets(e.target.value)} />
+                  <DerivedField
+                    label="Total qty in numbers"
+                    value={totalPieces > 0 ? formatNumber(totalPieces) : '—'}
+                    emphasis
+                  />
+                </FormGrid>
+              </FormSection>
+
+              <FormSection title="Machine counter">
+                <FormGrid cols={3}>
+                  <Input label="Start counter reading" mono type="number" value={startCounter} onChange={(e) => setStartCounter(e.target.value)} />
+                  <Input label="End counter reading" mono type="number" value={endCounter} onChange={(e) => setEndCounter(e.target.value)} />
+                  <DerivedField
+                    label="Strokes on the counter"
+                    value={counterStrokes > 0 ? formatNumber(counterStrokes) : '—'}
+                    emphasis
+                  />
+                </FormGrid>
+                {counterMismatch ? (
+                  <p className="mt-2 text-xs text-warning">
+                    The counter says {formatNumber(counterStrokes)} sheets, the operator entered{' '}
+                    {formatNumber(formedNum)}. The difference of{' '}
+                    {formatNumber(Math.abs(counterStrokes - formedNum))} should be explained in the remarks.
+                  </p>
+                ) : null}
+              </FormSection>
+
+              <FormSection title="Reel reconciliation">
+                <FormGrid cols={3}>
+                  <Input
+                    label="Issued weight"
+                    unit="kg"
+                    type="number"
+                    value={issuedWeight}
+                    onChange={(e) => setIssuedWeight(e.target.value)}
+                    helper={job ? `Estimated ${formatNumber(job.estReelWeightKg, 1)} kg on the job card` : undefined}
+                  />
+                  <Input
+                    label="Returned to store"
+                    unit="kg"
+                    type="number"
+                    value={returnedWeight}
+                    onChange={(e) => setReturnedWeight(e.target.value)}
+                    helper="Balance reel taken off the machine at job end"
+                  />
+                  <DerivedField label="Consumed" value={consumedKg > 0 ? `${formatNumber(consumedKg, 1)} kg` : '—'} emphasis />
+                  <DerivedField
+                    label="Grams per sheet"
+                    value={gramsPerSheet > 0 ? `${formatNumber(gramsPerSheet, 1)} g` : '—'}
+                  />
+                </FormGrid>
+                {returnedOverIssued ? (
+                  <p className="mt-2 text-xs text-error">
+                    Returned weight is more than what was issued. The run cannot post until this is corrected.
+                  </p>
+                ) : null}
+              </FormSection>
+            </>
           ) : (
             <>
               <FormSection title="Cutting output">

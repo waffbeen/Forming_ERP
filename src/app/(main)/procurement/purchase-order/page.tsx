@@ -1,10 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import { IndianRupee, PackageCheck, Plus, ShoppingCart, Truck } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, Tabs,
 } from '@/components/ui'
 import { DetailModal, PurchaseOrderModal } from '@/components/modals'
 import { GRNS, ITEMS, PURCHASE_ORDERS, SUPPLIERS } from '@/data'
@@ -112,13 +112,6 @@ export default function PurchaseOrderPage() {
           </Button>
         }
       />
-
-      <StatsGrid>
-        <StatsCard label="Purchase orders" value={String(PURCHASE_ORDERS.length)} note={`${open.length} still open`} icon={ShoppingCart} />
-        <StatsCard label="Open commitment" value={formatNumber(openValue / 100000, 2)} unit="lakh" note="Ordered, not yet received" icon={IndianRupee} />
-        <StatsCard label="Quantity pending" value={formatNumber(pendingQty)} note="Across open order lines" noteTone="warn" icon={Truck} />
-        <StatsCard label="Fully received" value={String(PURCHASE_ORDERS.filter((p) => p.poStatus === 'RECEIVED').length)} note="Closed against GRN" noteTone="good" icon={PackageCheck} />
-      </StatsGrid>
 
       <>
         <DataTable

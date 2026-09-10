@@ -1,14 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import { Factory, Recycle, Truck, Weight } from 'lucide-react'
+import { Factory } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Column, DataTable, Panel, PanelBody, PanelHeader, SpecList,
-  StackedCell, StatsCard, StatsGrid,
+  Badge, Column, DataTable, Panel, PanelBody, PanelHeader, SpecList, StackedCell,
 } from '@/components/ui'
 import { MATERIALS, SCRAP_ENTRIES } from '@/data'
-import { formatCurrency, formatDate, formatKg, formatNumber, formatPercent } from '@/lib/utils'
+import { formatCurrency, formatDate, formatKg, formatNumber } from '@/lib/utils'
 import type { MaterialType, ScrapEntry } from '@/types'
 
 export default function RecyclingPage() {
@@ -53,26 +52,6 @@ export default function RecyclingPage() {
         eyebrow="Fulfilment"
         title="Recycling"
       />
-
-      <StatsGrid>
-        <StatsCard label="Total to recycling" value={formatNumber(totalKg, 1)} unit="kg" note="Across five job cards" icon={Recycle} />
-        <StatsCard
-          label="Skeleton trim"
-          value={formatNumber(skeletonKg, 1)}
-          unit="kg"
-          note={`${formatPercent((skeletonKg / totalKg) * 100)} of all scrap`}
-          icon={Weight}
-        />
-        <StatsCard label="Rejected trays" value={formatNumber(rejectKg, 1)} unit="kg" note="Pulled at packing inspection" noteTone="warn" icon={Weight} />
-        <StatsCard
-          label="Recovery value"
-          value={formatNumber(recoveryValue, 0)}
-          unit="₹"
-          note="Credited back against job costing"
-          noteTone="good"
-          icon={Truck}
-        />
-      </StatsGrid>
 
       <>
         <DataTable

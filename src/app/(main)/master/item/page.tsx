@@ -1,6 +1,5 @@
 'use client'
 
-import { AlertTriangle, IndianRupee, PackageOpen, ScanBarcode } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Column, StackedCell } from '@/components/ui'
 import { ItemModal } from '@/components/modals'
@@ -96,12 +95,6 @@ export default function ItemMasterPage() {
     <MasterPage
       title="Items"
       entityName="item"
-      stats={[
-        { label: 'Items on the master', value: String(ITEMS.length), note: `${rawMaterials.length} raw material codes`, icon: ScanBarcode },
-        { label: 'Below reorder level', value: String(belowReorder.length), note: belowReorder.map((i) => i.itemCode).slice(0, 2).join(', ') || 'None', noteTone: belowReorder.length ? 'bad' : 'good', icon: AlertTriangle },
-        { label: 'Stock value', value: formatNumber(stockValue / 100000, 2), unit: 'lakh', note: 'At current purchase rates', icon: IndianRupee },
-        { label: 'Packing and spares', value: String(ITEMS.filter((i) => i.itemType === 'PACKING' || i.itemType === 'SPARE').length), note: 'Held against consumption', icon: PackageOpen },
-      ]}
       rows={ITEMS}
       columns={columns}
       rowKey={(r) => r.itemId}

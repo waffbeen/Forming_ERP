@@ -1,13 +1,15 @@
 'use client'
 
 import * as React from 'react'
-import { CheckSquare, Clock, Lock, TrendingDown } from 'lucide-react'
+import { Lock, TriangleAlert } from 'lucide-react'
 import { PageHeader, Note } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, Tabs,
 } from '@/components/ui'
 import { DetailModal } from '@/components/modals'
-import { JOB_CARDS, JOB_CLOSURES, USERS, WORK_ORDERS, readyToClose, remainingQty } from '@/data'
+import {
+  JOB_CARDS, JOB_CLOSURES, USERS, WORK_ORDERS, openNcsFor, readyToClose, remainingQty,
+} from '@/data'
 import { formatDate, formatNumber, formatPercent } from '@/lib/utils'
 import type { CloseReason, JobClosure } from '@/types/production'
 
@@ -119,24 +121,24 @@ export default function JobClosePage() {
   const cuttingOrder = jobOrders.find((w) => w.machineType === 'CUTTING')
   const shortfall = job ? Math.max(job.targetPiecesQty - (cuttingOrder?.producedQty ?? 0), 0) : 0
 
+  /* A job with a quality finding still open is not finished, whatever its work
+     orders say. Sealing it would put the finding beyond reach of the CAPA it is
+     waiting on, so the close is held until the register is clear. */
+  const jobOpenNcs = selectedJob ? openNcsFor(selectedJob) : []
+  const readyWithOpenNcs = ready.filter((r) => openNcsFor(r.jobCardNo).length > 0)
+  const clearToClose = ready.length > 0 && readyWithOpenNcs.length < ready.length
+
   return (
     <>
       <PageHeader
         eyebrow="Production"
         title="Job Close"
         actions={
-          <Button variant="primary" icon={Lock} disabled={ready.length === 0}>
+          <Button variant="primary" icon={Lock} disabled={!clearToClose}>
             Close job
           </Button>
         }
       />
-
-      <StatsGrid>
-        <StatsCard label="Ready to close" value={String(ready.length)} note="Every work order complete" noteTone="good" icon={CheckSquare} />
-        <StatsCard label="Still open" value={String(openJobs.length)} note="Work orders outstanding" icon={Clock} />
-        <StatsCard label="Closed" value={String(JOB_CLOSURES.length)} note="Sealed against further entry" icon={Lock} />
-        <StatsCard label="Short closed" value={String(shortClosed.length)} note={shortClosed.length ? 'Below the ordered quantity' : 'None so far'} noteTone={shortClosed.length ? 'warn' : 'good'} icon={TrendingDown} />
-      </StatsGrid>
 
       {tab === 'READY' ? (
         <DataTable
@@ -209,6 +211,34 @@ export default function JobClosePage() {
               </li>
             ))}
           </ul>
+
+          <Divider />
+          <p className="label-caps mb-2">Quality register</p>
+          {jobOpenNcs.length === 0 ? (
+            <p className="rounded-md border border-bd-default px-3 py-2 text-sm text-fg-muted">
+              Nothing open against this job. The close is not held by quality.
+            </p>
+          ) : (
+            <div className="flex items-start gap-3 rounded-md border border-error/35 bg-error-subtle p-3">
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+              <div>
+                <h5 className="text-sm font-semibold text-error">
+                  {jobOpenNcs.length} non-conformance{jobOpenNcs.length > 1 ? 's' : ''} still open
+                </h5>
+                <ul className="mt-1 space-y-0.5 text-xs text-fg-muted">
+                  {jobOpenNcs.map((nc) => (
+                    <li key={nc.ncId}>
+                      <span className="font-mono">{nc.ncNumber}</span> · {nc.parameter} · owned by {nc.responsible}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5 text-xs text-fg-muted">
+                  The job cannot be sealed until each is closed out with a cause and a corrective and preventive
+                  action on the non-conformance register.
+                </p>
+              </div>
+            </div>
+          )}
 
           <Divider />
           <Note>

@@ -70,6 +70,9 @@ export interface PurchaseOrder extends MasterBase {
 
 export type GrnLineStatus = 'PENDING_QC' | 'APPROVED' | 'QUARANTINE' | 'REJECTED'
 
+/** What the store does with a quantity RM QC would not pass. */
+export type RejectDisposition = 'RETURN_TO_SUPPLIER' | 'SCRAP'
+
 export interface GrnLine {
   lineId: string
   poLineId: string
@@ -80,10 +83,37 @@ export interface GrnLine {
   /** Reels are received as individual rolls, each with its own barcode. */
   reelId: string | null
   thicknessMicrons: number | null
-  /** IQC outcome, which decides the bin the line lands in. */
+  /**
+   * The strictest outcome QC recorded against the line, which is what the
+   * receipt register flags. A line split three ways reads as rejected even
+   * though most of it passed, because the rejection is the part that needs
+   * somebody to act.
+   */
   qcStatus: GrnLineStatus
+  /** Where the material was put away, and where an approved quantity counts. */
   binId: string | null
   qcRemarks: string
+
+  /**
+   * The stock gate. A receipt books what physically arrived; none of it counts
+   * as stock until QC finalises the line, and then only `approvedQty` does.
+   */
+  isQcApproved: boolean
+  /**
+   * The RM QC report behind the decision. Null on a line QC never touched:
+   * either still pending, or auto-approved because the item has no QC
+   * parameters configured against it.
+   */
+  qcNumber: string | null
+  /**
+   * The three-way split QC signs off. All three are zero until the line is
+   * finalised; from then on they sum to exactly `receivedQty`.
+   */
+  approvedQty: number
+  holdQty: number
+  rejectedQty: number
+  /** Set once the store decides what happens to `rejectedQty`. */
+  rejectDisposition: RejectDisposition | null
 }
 
 export interface GoodsReceiptNote extends MasterBase {
@@ -130,4 +160,108 @@ export interface StockBalance {
   itemId: string
   binId: string
   quantity: number
+}
+
+// ---------------------------------------------------------------- RM QC
+
+/**
+ * One characteristic on the incoming inspection format, defined per item
+ * category so a polymer reel and a carton are not asked the same questions.
+ *
+ * A numeric characteristic is judged against its limits; an attribute one is
+ * judged by eye against a list of acceptable answers.
+ */
+export interface QcParameter {
+  parameterId: string
+  /** Category the format belongs to, matching the item's own category. */
+  categoryId: string
+  characteristic: string
+  specification: string
+  /** How it is measured: the instrument or the reference method. */
+  method: string
+  uom: string | null
+  /** Numeric characteristics only, and the reading is judged against them. */
+  lowerLimit: number | null
+  upperLimit: number | null
+  /** What the reading should sit at, where there is a target to sit at. */
+  nominal: number | null
+  /**
+   * Where the limits are a band around what the order asked for rather than
+   * fixed numbers. Gauge works this way: a 300 micron reel and a 450 micron
+   * reel are both allowed five per cent either side of their own order.
+   */
+  tolerancePctOfOrder: number | null
+  /**
+   * Answers an attribute characteristic may be closed with, the first of which
+   * is the acceptable one. Null on a numeric characteristic.
+   */
+  acceptanceOptions: string[] | null
+}
+
+export type QcResult = 'PASS' | 'FAIL'
+
+/** One characteristic as the inspector actually filled it in. */
+export interface QcCharacteristicResult {
+  parameterId: string
+  /** One reading per sample drawn, in the order they were drawn. */
+  readings: number[]
+  /** Attribute characteristics carry the chosen answer instead of readings. */
+  acceptanceStatus: string | null
+  result: QcResult
+  remark: string
+}
+
+/**
+ * The inspection record for one received batch. It is written before any
+ * quantity is signed off, and its number is what the GRN line then carries as
+ * evidence, so an approval can never exist without an inspection behind it.
+ */
+export interface RmQcReport {
+  qcNumber: string
+  grnNumber: string
+  grnLineId: string
+  itemId: string
+  reelId: string | null
+  inspectedOn: string
+  inspectedByUserId: string
+  /** How much was drawn, and how many pieces were drawn from it. */
+  sampleSize: string
+  sampleCount: number
+  characteristics: QcCharacteristicResult[]
+  /** Fails on any characteristic, so the overall verdict is derived. */
+  overallResult: QcResult
+  remarks: string
+}
+
+/**
+ * Where the QC screen shows a receipt, following the same three questions the
+ * store asks: has it been inspected, did anything stay back, was anything sent
+ * away. A receipt QC never had to touch appears in none of them.
+ */
+export type RmQcTab = 'PENDING' | 'PROCESSED' | 'HOLD' | 'REJECTED'
+
+// -------------------------------------------------------- Material issue
+
+/**
+ * QC-approved raw material handed to the floor against one job card. This is
+ * the only route from a bin to a machine: forming cannot start on a reel the
+ * store has not issued, and the issue can only draw on approved stock.
+ */
+export interface MaterialIssue {
+  issueId: string
+  issueNo: string
+  issuedOn: string
+  jobCardNo: string
+  itemId: string
+  reelId: string | null
+  /** Bin the material came out of, always a QC-approved one. */
+  binId: string
+  quantity: number
+  /** The receipt and inspection the material is traceable back to. */
+  grnNumber: string
+  qcNumber: string | null
+  /** Store keeper who issued it, and the operator who took it. */
+  issuedByUserId: string
+  issuedToEmployee: string
+  remarks: string
 }

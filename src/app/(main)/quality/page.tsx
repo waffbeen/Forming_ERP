@@ -1,245 +1,138 @@
 'use client'
 
 import * as React from 'react'
-import { AlertTriangle, ClipboardCheck, FileCheck2, History, ShieldAlert } from 'lucide-react'
-import { PageHeader } from '@/components/layout'
+import Link from 'next/link'
 import {
-  Badge, Button, Column, DataTable, Panel, PanelBody, PanelHeader,
-  SpecList, StatsCard, StatsGrid, Tabs,
-} from '@/components/ui'
-import { DefectChecklist, MicronMeter, SignatureGate } from '@/components/forming'
-import { QcStatusBadge } from '@/lib/shared-ui'
+  ArrowRight, ClipboardCheck, FileCheck2, Gauge, ShieldAlert, type LucideIcon,
+} from 'lucide-react'
+import { PageHeader, Note } from '@/components/layout'
+import { Badge, Panel, PanelBody, PanelHeader } from '@/components/ui'
+import type { BadgeTone } from '@/components/ui'
 import {
-  COAS, FORMING_DEFECT_CHECKS, IN_PROCESS_CHECKS, JOB_CARDS, CUTTING_DEFECT_CHECKS, REELS,
+  COAS, CUTTING_DEFECT_CHECKS, FORMING_DEFECT_CHECKS, JOB_CARDS, pendingQcLines,
 } from '@/data'
-import {
-  DOCUMENTS, FORMING_DEFECTS, LINE_CLEARANCE_AREAS, PLANT, CUTTING_DEFECTS,
-} from '@/config/plant'
-import { formatMicrons, formatNumber } from '@/lib/utils'
-import type { Coa, InProcessCheck, Reel } from '@/types'
 
-const TABS = [
-  { id: 'CLEARANCE', label: 'Line clearance', count: 2 },
-  { id: 'IQC', label: 'Incoming (IQC)' },
-  { id: 'INPROCESS', label: 'In-process defects' },
-  { id: 'THICKNESS', label: 'Thickness log' },
-  { id: 'COA', label: 'FG & COA' },
-]
+/* Quality, as a directory rather than a workspace.
 
-const SPEC_MICRONS = 300
+   Four different checks, done by four different people, at four different points
+   in the run — the supervisor at the machine before it starts, the QC executive
+   at the receiving bay, the QC executive on the line, the QA manager at the end.
+   Putting them on one screen made it look like one person's job, which is
+   exactly the confusion the paper formats already cause. Each has its own screen
+   now, and this page only says who owns what and what is waiting. */
+
+interface Area {
+  href: string
+  title: string
+  owner: string
+  /** What the person actually does there, in their own terms. */
+  work: string
+  when: string
+  icon: LucideIcon
+  pending: number
+  pendingLabel: string
+  tone: BadgeTone
+}
 
 export default function QualityPage() {
-  const [tab, setTab] = React.useState('CLEARANCE')
+  const atGate = JOB_CARDS.filter(
+    (j) => j.stages.FORMING === 'BLOCKED' || j.stages.FORMING === 'PENDING',
+  ).length
+  const pendingBatches = pendingQcLines().length
+  const defects = [...FORMING_DEFECT_CHECKS, ...CUTTING_DEFECT_CHECKS].filter((c) =>
+    Object.values(c.results).some((r) => r === 'DEFECT'),
+  ).length
+  const unsealed = COAS.filter((c) => !c.gdpAuditLock).length
 
-  const blockedJob = JOB_CARDS.find((j) => j.stages.FORMING === 'BLOCKED') ?? JOB_CARDS[3]
-  const quarantined = REELS.filter((r) => r.qcStatus === 'QUARANTINE')
-  const rejected = REELS.filter((r) => r.qcStatus === 'REJECTED')
-
-  const reelColumns: Column<Reel>[] = [
-    { key: 'reel', header: 'Reel', render: (r) => <span className="font-mono">{r.reelId}</span> },
-    { key: 'grn', header: 'GRN', render: (r) => <span className="font-mono">{r.grnNumber}</span> },
-    { key: 'mat', header: 'Material', render: (r) => r.materialType },
+  const areas: Area[] = [
     {
-      key: 'thk',
-      header: 'Thickness',
-      align: 'right',
-      render: (r) => (
-        <span className={r.thicknessMicrons < PLANT.minMicrons ? 'font-mono text-error' : 'font-mono'}>
-          {formatMicrons(r.thicknessMicrons)}
-        </span>
-      ),
+      href: '/quality/rm-qc',
+      title: 'Raw Material QC',
+      owner: 'QC executive, receiving bay',
+      work: 'Inspects each received batch against the item’s format, then approves, holds or returns the quantity',
+      when: 'On receipt, before anything becomes stock',
+      icon: ClipboardCheck,
+      pending: pendingBatches,
+      pendingLabel: pendingBatches === 1 ? 'batch waiting' : 'batches waiting',
+      tone: pendingBatches > 0 ? 'warning' : 'success',
     },
-    { key: 'wt', header: 'Weight', align: 'right', render: (r) => <span className="font-mono">{formatNumber(r.grossWeightKg, 1)}</span> },
-    { key: 'sup', header: 'Supplier', render: (r) => r.supplier },
-    { key: 'bin', header: 'Bin', render: (r) => <QcStatusBadge status={r.qcStatus} /> },
-  ]
-
-  const checkColumns: Column<InProcessCheck>[] = [
-    { key: 'time', header: 'Time', render: (r) => <span className="font-mono">{r.time}</span> },
-    { key: 'insp', header: 'Inspector', render: (r) => r.inspector },
-    { key: 'thk', header: 'Thickness', align: 'right', render: (r) => <span className="font-mono">{formatMicrons(r.thicknessMicrons)}</span> },
     {
-      key: 'meter',
-      header: `${Math.round(SPEC_MICRONS * 0.95)} to ${Math.round(SPEC_MICRONS * 1.05)} µm`,
-      width: '160px',
-      render: (r) => <MicronMeter reading={r.thicknessMicrons} specMicrons={SPEC_MICRONS} />,
+      href: '/quality/line-clearance',
+      title: 'Line Clearance',
+      owner: 'Production / QC supervisor',
+      work: 'Checks the six areas are physically cleared of the previous job and releases the machine',
+      when: 'Before a run starts',
+      icon: ShieldAlert,
+      pending: atGate,
+      pendingLabel: atGate === 1 ? 'job at the gate' : 'jobs at the gate',
+      tone: atGate > 0 ? 'warning' : 'success',
     },
-    { key: 'vis', header: 'Visual clarity', render: (r) => r.visualClarity },
     {
-      key: 'res',
-      header: 'Result',
-      render: (r) => (
-        <Badge tone={r.result === 'PASSED' ? 'success' : 'error'}>
-          {r.result === 'PASSED' ? 'Within spec' : 'Out of spec'}
-        </Badge>
-      ),
+      href: '/quality/in-process',
+      title: 'In-Process Checks',
+      owner: 'QC executive, on the line',
+      work: 'Fills the hourly defect checklist and thickness log for the section that is running',
+      when: 'Every hour, while the run is going',
+      icon: Gauge,
+      pending: defects,
+      pendingLabel: defects === 1 ? 'defect logged' : 'defects logged',
+      tone: defects > 0 ? 'warning' : 'success',
     },
-  ]
-
-  const coaColumns: Column<Coa>[] = [
-    { key: 'coa', header: 'COA', render: (r) => <span className="font-mono">{r.coaNumber}</span> },
-    { key: 'job', header: 'Job card', render: (r) => <span className="font-mono">{r.jobCardNo}</span> },
-    { key: 'cust', header: 'Customer', render: (r) => r.customerName },
-    { key: 'thk', header: 'Avg thickness', align: 'right', render: (r) => <span className="font-mono">{formatNumber(r.avgThicknessMicrons, 1)} µm</span> },
-    { key: 'depth', header: 'Depth', align: 'right', render: (r) => <span className="font-mono">{formatNumber(r.depthMm, 1)} mm</span> },
-    { key: 'checks', header: 'Hourly checks', render: (r) => <span className="font-mono">{r.hourlyChecksMatched}</span> },
     {
-      key: 'lock',
-      header: 'Record',
-      render: (r) =>
-        r.gdpAuditLock ? <Badge tone="success">Sealed</Badge> : <Badge tone="warning">Open for sign-off</Badge>,
+      href: '/quality/fg-coa',
+      title: 'Finished Goods & COA',
+      owner: 'QA manager',
+      work: 'Verifies the run’s records match and releases the certificate the customer receives',
+      when: 'After the job closes',
+      icon: FileCheck2,
+      pending: unsealed,
+      pendingLabel: unsealed === 1 ? 'record open' : 'records open',
+      tone: unsealed > 0 ? 'warning' : 'success',
     },
   ]
 
   return (
     <>
-      <PageHeader
-        eyebrow="Quality & Compliance"
-        title="Quality Control"
-        actions={<Button icon={History}>Audit trail</Button>}
-      />
+      <PageHeader eyebrow="Quality & Compliance" title="Quality Control" />
 
-      <StatsGrid>
-        <StatsCard
-          label="Reels in quarantine"
-          value={String(quarantined.length)}
-          note="IQC thickness pending"
-          noteTone="warn"
-          icon={ShieldAlert}
+      <Panel>
+        <PanelHeader
+          title="Who checks what"
+          description="Each check has its own screen, because each one is a different person’s signature"
         />
-        <StatsCard label="Hourly checks today" value={`${IN_PROCESS_CHECKS.length}`} unit="/ 8" note="No missed slots" noteTone="good" icon={ClipboardCheck} />
-        <StatsCard label="Reels rejected at IQC" value={String(rejected.length)} note="Below the 180 µm floor" noteTone="bad" icon={AlertTriangle} />
-        <StatsCard
-          label="COA released this month"
-          value={String(COAS.filter((c) => c.releasedOn).length)}
-          note="Zero non-conformances raised"
-          noteTone="good"
-          icon={FileCheck2}
-        />
-      </StatsGrid>
+        <PanelBody>
+          <ul className="space-y-2">
+            {areas.map((area) => (
+              <li key={area.href}>
+                <Link
+                  href={area.href}
+                  className="group flex items-start gap-3 rounded-md border border-bd-default px-3 py-3 transition-colors hover:border-bd-strong hover:bg-bg-hover"
+                >
+                  <area.icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-sm font-semibold">{area.title}</span>
+                      <span className="text-xs text-fg-muted">{area.owner}</span>
+                      <Badge tone={area.tone}>
+                        {area.pending} {area.pendingLabel}
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 max-w-[80ch] text-xs text-fg-muted">{area.work}</p>
+                    <p className="mt-0.5 text-xs text-fg-subtle">{area.when}</p>
+                  </div>
+                  <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-fg-subtle transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </PanelBody>
+      </Panel>
 
-      <div className="mb-3">
-        <Tabs tabs={TABS} activeId={tab} onChange={setTab} />
-      </div>
-
-      {tab === 'CLEARANCE' ? (
-        <>
-          <Panel>
-            <PanelHeader title="Machine gate" />
-            <PanelBody>
-              <SignatureGate
-                machineLabel={`${blockedJob.formingMachineCode} forming`}
-                jobLabel={`${DOCUMENTS.productionForming} · ${blockedJob.jobCardNo} · ${blockedJob.materialType} ${blockedJob.thicknessMicrons} µm · ${blockedJob.customerName}`}
-                areas={LINE_CLEARANCE_AREAS}
-                declaration="I have personally checked the above areas and the records of the previous product, to prevent any product mix."
-                lines={[
-                  {
-                    id: 'operator',
-                    label: 'Machine operator',
-                    hint: 'Confirms all six areas are physically cleared',
-                    signedBy: 'Anil Kadam',
-                    signedAt: '09:14',
-                  },
-                  {
-                    id: 'supervisor',
-                    label: 'Production / QC supervisor',
-                    hint: 'Verifies the clearance and releases the machine',
-                  },
-                  { id: 'fpa', label: 'First piece approval (FPA)', hint: 'Operator produces it, QC executive verifies it' },
-                ]}
-              />
-            </PanelBody>
-          </Panel>
-
-          <Panel>
-            <PanelHeader title="Certificate of Analysis" description={<span className="font-mono">{COAS[0].coaNumber}</span>} action={<Badge tone="success">Released</Badge>} />
-            <PanelBody>
-              <SpecList
-                rows={[
-                  { label: 'Job card', value: COAS[0].jobCardNo },
-                  { label: 'Customer', value: COAS[0].customerName, mono: false },
-                  { label: 'Average thickness', value: `${formatNumber(COAS[0].avgThicknessMicrons, 1)} µm` },
-                  { label: 'Depth of draw', value: `${formatNumber(COAS[0].depthMm, 1)} mm` },
-                  { label: 'Visual clarity', value: 'Pass, no haze or crazing', mono: false },
-                  { label: 'Migration test', value: 'Conforms, food grade', mono: false },
-                  { label: 'Hourly checks matched', value: COAS[0].hourlyChecksMatched },
-                  { label: 'Record lock', value: 'Sealed 09 Sep, 17:42', emphasis: true, mono: false },
-                ]}
-              />
-            </PanelBody>
-        </Panel>
-        </>
-      ) : null}
-
-      {tab === 'IQC' ? (
-        <DataTable
-          title="Incoming reel QC"
-          rows={REELS}
-          columns={reelColumns}
-          rowKey={(r) => r.reelId}
-          mainColumns="reel,mat,thk,bin"
-        />
-      ) : null}
-
-      {tab === 'INPROCESS' ? (
-        <div className="flex flex-col gap-3.5">
-          <Panel>
-            <PanelHeader
-              title="Forming section, in-process checklist"
-              description={
-                <span className="font-mono">
-                  {DOCUMENTS.qcForming} · JC-2609-124 · Vadilal Industries
-                </span>
-              }
-              action={<Badge tone="warning">1 defect logged</Badge>}
-            />
-            <DefectChecklist
-              defects={FORMING_DEFECTS}
-              checks={FORMING_DEFECT_CHECKS}
-              documentNo={DOCUMENTS.qcForming}
-              section="Forming"
-            />
-          </Panel>
-
-          <Panel>
-            <PanelHeader
-              title="Cutting section, in-process checklist"
-              description={
-                <span className="font-mono">
-                  {DOCUMENTS.qcCutting} · JC-2609-124 · Vadilal Industries
-                </span>
-              }
-              action={<Badge tone="warning">1 defect logged</Badge>}
-            />
-            <DefectChecklist
-              defects={CUTTING_DEFECTS}
-              checks={CUTTING_DEFECT_CHECKS}
-              documentNo={DOCUMENTS.qcCutting}
-              section="Cutting"
-            />
-        </Panel>
-        </div>
-      ) : null}
-
-      {tab === 'THICKNESS' ? (
-        <DataTable
-          title={`In-process check log · ${IN_PROCESS_CHECKS[0].jobCardNo} · spec ${SPEC_MICRONS} µm ± 5 %`}
-          rows={IN_PROCESS_CHECKS}
-          columns={checkColumns}
-          rowKey={(r) => r.checkId}
-          mainColumns="time,insp,thk,res"
-        />
-      ) : null}
-
-      {tab === 'COA' ? (
-        <DataTable
-          title="Finished goods and COA"
-          rows={COAS}
-          columns={coaColumns}
-          rowKey={(r) => r.coaId}
-          mainColumns="coa,job,cust,lock"
-        />
-      ) : null}
+      <Note>
+        The order matters as much as the split: material cannot be issued until incoming QC approves it, a run cannot
+        start until the supervisor releases the machine, and a certificate cannot be released until the hourly checks
+        behind it are complete.
+      </Note>
     </>
   )
 }

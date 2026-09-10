@@ -3,14 +3,12 @@
 import * as React from 'react'
 import { Plus, Upload } from 'lucide-react'
 import { PageHeader } from './page-header'
-import { Button, Column, DataTable, StatsCard, StatsGrid } from '@/components/ui'
-import type { StatsCardProps } from '@/components/ui'
+import { Button, Column, DataTable } from '@/components/ui'
 
 export interface MasterPageProps<T> {
   title: string
   /** Singular noun used on the "New" button, e.g. "customer". */
   entityName: string
-  stats?: StatsCardProps[]
   rows: T[]
   columns: Column<T>[]
   rowKey: (row: T) => string
@@ -30,7 +28,6 @@ export interface MasterPageProps<T> {
 export function MasterPage<T>({
   title,
   entityName,
-  stats,
   rows,
   columns,
   rowKey,
@@ -59,14 +56,6 @@ export function MasterPage<T>({
           </>
         }
       />
-
-      {stats?.length ? (
-        <StatsGrid>
-          {stats.map((s) => (
-            <StatsCard key={s.label} {...s} />
-          ))}
-        </StatsGrid>
-      ) : null}
 
       <DataTable
         rows={rows}

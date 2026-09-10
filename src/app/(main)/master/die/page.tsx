@@ -1,6 +1,5 @@
 'use client'
 
-import { AlertTriangle, Hammer, Stamp, Wrench } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Column, StackedCell } from '@/components/ui'
 import { DieModal } from '@/components/modals'
@@ -76,12 +75,6 @@ export default function DieMasterPage() {
     <MasterPage
       title="Dies & Tools"
       entityName="die"
-      stats={[
-        { label: 'Dies on record', value: String(DIES.length), note: 'Forming and cutting pairs', icon: Stamp },
-        { label: 'Mounted on machines', value: String(DIES.filter((d) => d.location.includes('mounted')).length), note: 'Rest are in the tool room', icon: Hammer },
-        { label: 'Service due', value: String(dueSoon.length), note: 'Within 10 % of interval', noteTone: 'warn', icon: Wrench },
-        { label: 'Service overdue', value: String(overdue.length), note: overdue[0] ? `${overdue[0].dieCode} needs the tool room` : 'None', noteTone: 'bad', icon: AlertTriangle },
-      ]}
       rows={DIES}
       columns={columns}
       rowKey={(r) => r.dieId}

@@ -1,10 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import { AlertTriangle, CheckCircle2, ClipboardList, Clock, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, Tabs,
 } from '@/components/ui'
 import { DetailModal, RequisitionModal } from '@/components/modals'
 import { ITEMS, PURCHASE_REQUISITIONS, USERS, itemsBelowReorder } from '@/data'
@@ -97,19 +97,6 @@ export default function RequisitionPage() {
           </Button>
         }
       />
-
-      <StatsGrid>
-        <StatsCard label="Open requisitions" value={String(PURCHASE_REQUISITIONS.length)} note="Across four departments" icon={ClipboardList} />
-        <StatsCard label="Awaiting approval" value={String(awaiting.length)} note="Blocking a purchase order" noteTone="warn" icon={Clock} />
-        <StatsCard label="Converted to PO" value={String(ordered.length)} note="Ordered with a supplier" noteTone="good" icon={CheckCircle2} />
-        <StatsCard
-          label="Items below reorder"
-          value={String(belowReorder.length)}
-          note={belowReorder.map((i) => i.itemCode).slice(0, 2).join(', ') || 'None'}
-          noteTone={belowReorder.length ? 'bad' : 'good'}
-          icon={AlertTriangle}
-        />
-      </StatsGrid>
 
       <>
         <DataTable

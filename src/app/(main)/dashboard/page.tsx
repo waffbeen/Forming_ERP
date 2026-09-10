@@ -1,10 +1,8 @@
 'use client'
 
-import { Boxes, Flame, Lock, Recycle } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Badge, Column, DataTable, Divider, Panel, PanelBody, PanelHeader, SpecList,
-  StackedCell, StatsCard, StatsGrid,
+  Badge, Column, DataTable, Divider, Panel, PanelBody, PanelHeader, SpecList, StackedCell,
 } from '@/components/ui'
 import { StageStrip } from '@/components/forming'
 import { QcStatusBadge } from '@/lib/shared-ui'
@@ -13,7 +11,7 @@ import {
   orderValue,
 } from '@/data'
 import { PLANT } from '@/config/plant'
-import { formatKg, formatNumber, formatPercent } from '@/lib/utils'
+import { formatKg, formatNumber } from '@/lib/utils'
 import type { JobCard } from '@/types'
 
 export default function DashboardPage() {
@@ -39,31 +37,6 @@ export default function DashboardPage() {
         eyebrow={`${PLANT.unitName} · ${PLANT.location}`}
         title="Plant Dashboard"
       />
-
-      <StatsGrid>
-        <StatsCard
-          label="Open order book"
-          value={formatNumber(openValue / 100000, 1)}
-          unit="lakh"
-          note={`${SALES_ORDERS.length} orders, ${new Set(SALES_ORDERS.map((o) => o.customerId)).size} customers`}
-          icon={Boxes}
-        />
-        <StatsCard label="Formed sheets today" value={formatNumber(sheetsToday)} note={`${formatNumber(piecesToday)} trays cut`} icon={Flame} />
-        <StatsCard
-          label="Reel consumed"
-          value={formatNumber(consumedKg, 1)}
-          unit="kg"
-          note={`${formatPercent((scrapKg / consumedKg) * 100)} returned as scrap`}
-          icon={Recycle}
-        />
-        <StatsCard
-          label="Blocked at QC gate"
-          value={String(blocked.length)}
-          note={blocked.length > 0 ? `${blocked[0].jobCardNo} awaiting clearance` : 'Nothing held'}
-          noteTone={blocked.length > 0 ? 'bad' : 'good'}
-          icon={Lock}
-        />
-      </StatsGrid>
 
       <>
         <DataTable

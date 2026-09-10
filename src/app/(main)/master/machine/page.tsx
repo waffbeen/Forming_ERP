@@ -1,11 +1,9 @@
 'use client'
 
-import { Cog, Flame, Scissors, Wrench } from 'lucide-react'
 import { MasterPage } from '@/components/layout'
 import { Badge, Column, StackedCell } from '@/components/ui'
 import { MachineModal } from '@/components/modals'
 import { MACHINES } from '@/data'
-import { PLANT } from '@/config/plant'
 import type { Machine } from '@/types'
 
 const columns: Column<Machine>[] = [
@@ -66,18 +64,6 @@ export default function MachineMasterPage() {
     <MasterPage
       title="Machines"
       entityName="machine"
-      stats={[
-        { label: 'Machines', value: String(MACHINES.length), note: 'Across both stages', icon: Cog },
-        { label: 'Forming lines', value: String(forming.length), note: `All on a ${PLANT.bedLengthMm} × ${PLANT.bedWidthMm} mm bed`, icon: Flame },
-        { label: 'Cutting presses', value: String(cutting.length), note: `${PLANT.sheetsPerStroke} sheets per stroke`, icon: Scissors },
-        {
-          label: 'Under maintenance',
-          value: String(MACHINES.filter((m) => m.status === 'MAINTENANCE').length),
-          note: 'TF-03 deep draw line',
-          noteTone: 'warn',
-          icon: Wrench,
-        },
-      ]}
       rows={MACHINES}
       columns={columns}
       rowKey={(r) => r.machineId}
