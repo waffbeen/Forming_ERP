@@ -7,15 +7,110 @@ import { DECKLE_MM, PLANT } from '@/config/plant'
 import { ARTWORKS, MATERIALS } from './masters'
 
 export const SALES_ORDERS: SalesOrder[] = [
-  { salesOrderId: 'S01', soNumber: 'SO-2609-041', soDate: '2026-09-02', customerId: 'C01', customerName: 'Vadilal Industries', clientPoRef: 'PO/VAD/26-27/1188', artworkCode: 'AW-PVC-0312', materialType: 'PVC', thicknessMicrons: 300, orderQtyPcs: 25000, deliveryDate: '2026-09-18', ratePerPc: 2.85, status: 'IN_PRODUCTION', source: 'DIRECT', enquiryNo: null, estimationNo: null },
-  { salesOrderId: 'S02', soNumber: 'SO-2609-040', soDate: '2026-09-02', customerId: 'C02', customerName: 'Cipla Ltd', clientPoRef: 'PO/CIP/2609/0442', artworkCode: 'AW-PVC-0288', materialType: 'PVC', thicknessMicrons: 450, orderQtyPcs: 60000, deliveryDate: '2026-09-22', ratePerPc: 3.40, status: 'READY_TO_RELEASE', source: 'DIRECT', enquiryNo: null, estimationNo: null },
-  { salesOrderId: 'S03', soNumber: 'SO-2609-038', soDate: '2026-09-01', customerId: 'C03', customerName: 'Britannia Industries', clientPoRef: 'PO/BRI/26/7714', artworkCode: 'AW-HIP-0104', materialType: 'HIPS', thicknessMicrons: 350, orderQtyPcs: 40000, deliveryDate: '2026-09-15', ratePerPc: 3.10, status: 'IN_PRODUCTION', source: 'DIRECT', enquiryNo: null, estimationNo: null },
-  { salesOrderId: 'S04', soNumber: 'SO-2609-036', soDate: '2026-09-01', customerId: 'C04', customerName: 'Himalaya Wellness', clientPoRef: 'PO/HIM/2609/221', artworkCode: 'AW-PET-0219', materialType: 'PET', thicknessMicrons: 250, orderQtyPcs: 18500, deliveryDate: '2026-09-24', ratePerPc: 2.20, status: 'AWAITING_ARTWORK', source: 'DIRECT', enquiryNo: null, estimationNo: null },
-  { salesOrderId: 'S05', soNumber: 'SO-2609-035', soDate: '2026-08-31', customerId: 'C05', customerName: 'Zydus Lifesciences', clientPoRef: 'PO/ZYD/26-27/0913', artworkCode: 'AW-PVC-0295', materialType: 'PVC', thicknessMicrons: 500, orderQtyPcs: 32000, deliveryDate: '2026-09-26', ratePerPc: 7.60, status: 'READY_TO_RELEASE', source: 'DIRECT', enquiryNo: null, estimationNo: null },
-  { salesOrderId: 'S06', soNumber: 'SO-2609-033', soDate: '2026-08-30', customerId: 'C06', customerName: 'Parle Products', clientPoRef: 'PO/PAR/2609/5502', artworkCode: 'AW-PP-0067', materialType: 'PP', thicknessMicrons: 400, orderQtyPcs: 75000, deliveryDate: '2026-09-30', ratePerPc: 2.65, status: 'PLANNED', source: 'ESTIMATION', enquiryNo: 'ENQ-2609-0039', estimationNo: 'EST-2609-0026' },
-  { salesOrderId: 'S07', soNumber: 'SO-2609-031', soDate: '2026-08-29', customerId: 'C07', customerName: 'Emami Ltd', clientPoRef: 'PO/EMA/26/3341', artworkCode: 'AW-PET-0201', materialType: 'PET', thicknessMicrons: 600, orderQtyPcs: 12000, deliveryDate: '2026-09-19', ratePerPc: 9.15, status: 'AWAITING_ARTWORK', source: 'ESTIMATION', enquiryNo: 'ENQ-2609-0037', estimationNo: 'EST-2609-0024' },
-  { salesOrderId: 'S08', soNumber: 'SO-2609-029', soDate: '2026-08-28', customerId: 'C08', customerName: 'Mother Dairy', clientPoRef: 'PO/MOD/2609/8871', artworkCode: 'AW-HIP-0098', materialType: 'HIPS', thicknessMicrons: 280, orderQtyPcs: 90000, deliveryDate: '2026-09-28', ratePerPc: 1.55, status: 'IN_PRODUCTION', source: 'DIRECT', enquiryNo: null, estimationNo: null },
+  {
+    salesOrderId: 'S01', soNumber: 'SO-2609-041', soDate: '2026-09-02',
+    customerId: 'C01', customerName: 'Vadilal Industries', clientPoRef: 'PO/VAD/26-27/1188',
+    status: 'IN_PRODUCTION', source: 'DIRECT', enquiryNo: null, estimationNo: null,
+    lines: [
+      { lineId: 'S01L1', lineNo: 1, artworkCode: 'AW-PVC-0312', materialType: 'PVC', thicknessMicrons: 300, orderQtyPcs: 25000, ratePerPc: 2.85, deliveryDate: '2026-09-18' },
+      { lineId: 'S01L2', lineNo: 2, artworkCode: 'AW-HIP-0098', materialType: 'HIPS', thicknessMicrons: 280, orderQtyPcs: 12000, ratePerPc: 1.62, deliveryDate: '2026-09-25' },
+    ],
+  },
+  {
+    salesOrderId: 'S02', soNumber: 'SO-2609-040', soDate: '2026-09-02',
+    customerId: 'C02', customerName: 'Cipla Ltd', clientPoRef: 'PO/CIP/2609/0442',
+    status: 'READY_TO_RELEASE', source: 'DIRECT', enquiryNo: null, estimationNo: null,
+    lines: [
+      { lineId: 'S02L1', lineNo: 1, artworkCode: 'AW-PVC-0288', materialType: 'PVC', thicknessMicrons: 450, orderQtyPcs: 60000, ratePerPc: 3.40, deliveryDate: '2026-09-22' },
+    ],
+  },
+  {
+    salesOrderId: 'S03', soNumber: 'SO-2609-038', soDate: '2026-09-01',
+    customerId: 'C03', customerName: 'Britannia Industries', clientPoRef: 'PO/BRI/26/7714',
+    status: 'IN_PRODUCTION', source: 'DIRECT', enquiryNo: null, estimationNo: null,
+    lines: [
+      { lineId: 'S03L1', lineNo: 1, artworkCode: 'AW-HIP-0104', materialType: 'HIPS', thicknessMicrons: 350, orderQtyPcs: 40000, ratePerPc: 3.10, deliveryDate: '2026-09-15' },
+    ],
+  },
+  {
+    salesOrderId: 'S04', soNumber: 'SO-2609-036', soDate: '2026-09-01',
+    customerId: 'C04', customerName: 'Himalaya Wellness', clientPoRef: 'PO/HIM/2609/221',
+    status: 'AWAITING_ARTWORK', source: 'DIRECT', enquiryNo: null, estimationNo: null,
+    lines: [
+      { lineId: 'S04L1', lineNo: 1, artworkCode: 'AW-PET-0219', materialType: 'PET', thicknessMicrons: 250, orderQtyPcs: 18500, ratePerPc: 2.20, deliveryDate: '2026-09-24' },
+    ],
+  },
+  {
+    salesOrderId: 'S05', soNumber: 'SO-2609-035', soDate: '2026-08-31',
+    customerId: 'C05', customerName: 'Zydus Lifesciences', clientPoRef: 'PO/ZYD/26-27/0913',
+    status: 'READY_TO_RELEASE', source: 'DIRECT', enquiryNo: null, estimationNo: null,
+    lines: [
+      { lineId: 'S05L1', lineNo: 1, artworkCode: 'AW-PVC-0295', materialType: 'PVC', thicknessMicrons: 500, orderQtyPcs: 32000, ratePerPc: 7.60, deliveryDate: '2026-09-26' },
+      { lineId: 'S05L2', lineNo: 2, artworkCode: 'AW-PET-0201', materialType: 'PET', thicknessMicrons: 600, orderQtyPcs: 6000, ratePerPc: 9.40, deliveryDate: '2026-10-02' },
+      { lineId: 'S05L3', lineNo: 3, artworkCode: 'AW-PVC-0288', materialType: 'PVC', thicknessMicrons: 450, orderQtyPcs: 15000, ratePerPc: 3.55, deliveryDate: '2026-10-02' },
+    ],
+  },
+  {
+    salesOrderId: 'S06', soNumber: 'SO-2609-033', soDate: '2026-08-30',
+    customerId: 'C06', customerName: 'Parle Products', clientPoRef: 'PO/PAR/2609/5502',
+    status: 'PLANNED', source: 'ESTIMATION', enquiryNo: 'ENQ-2609-0039', estimationNo: 'EST-2609-0026',
+    lines: [
+      { lineId: 'S06L1', lineNo: 1, artworkCode: 'AW-PP-0067', materialType: 'PP', thicknessMicrons: 400, orderQtyPcs: 75000, ratePerPc: 2.65, deliveryDate: '2026-09-30' },
+    ],
+  },
+  {
+    salesOrderId: 'S07', soNumber: 'SO-2609-031', soDate: '2026-08-29',
+    customerId: 'C07', customerName: 'Emami Ltd', clientPoRef: 'PO/EMA/26/3341',
+    status: 'AWAITING_ARTWORK', source: 'ESTIMATION', enquiryNo: 'ENQ-2609-0037', estimationNo: 'EST-2609-0024',
+    lines: [
+      { lineId: 'S07L1', lineNo: 1, artworkCode: 'AW-PET-0201', materialType: 'PET', thicknessMicrons: 600, orderQtyPcs: 12000, ratePerPc: 9.15, deliveryDate: '2026-09-19' },
+    ],
+  },
+  {
+    salesOrderId: 'S08', soNumber: 'SO-2609-029', soDate: '2026-08-28',
+    customerId: 'C08', customerName: 'Mother Dairy', clientPoRef: 'PO/MOD/2609/8871',
+    status: 'IN_PRODUCTION', source: 'DIRECT', enquiryNo: null, estimationNo: null,
+    lines: [
+      { lineId: 'S08L1', lineNo: 1, artworkCode: 'AW-HIP-0098', materialType: 'HIPS', thicknessMicrons: 280, orderQtyPcs: 90000, ratePerPc: 1.55, deliveryDate: '2026-09-28' },
+    ],
+  },
 ]
+
+/* ------------------------------------------------------------------ Totals
+
+   An order's quantity, value and delivery date are what its lines add up to,
+   so a line changed on one screen cannot leave a stale total on another. */
+
+/** Pieces across every line on an order. */
+export function orderQty(order: SalesOrder) {
+  return order.lines.reduce((sum, line) => sum + line.orderQtyPcs, 0)
+}
+
+/** What the order is worth at the rates agreed line by line. */
+export function orderValue(order: SalesOrder) {
+  return order.lines.reduce((sum, line) => sum + line.orderQtyPcs * line.ratePerPc, 0)
+}
+
+/** The date the order first has to ship something, which is what a planner
+    schedules against. */
+export function orderDeliveryDate(order: SalesOrder) {
+  return order.lines.reduce(
+    (earliest, line) => (earliest === '' || line.deliveryDate < earliest ? line.deliveryDate : earliest),
+    '',
+  )
+}
+
+/** Every line on every order, for a screen that works line by line. */
+export function allOrderLines() {
+  return SALES_ORDERS.flatMap((order) => order.lines.map((line) => ({ order, line })))
+}
+
+/** The line a job card was raised against. */
+export function lineFor(soNumber: string, artworkCode: string) {
+  return SALES_ORDERS.find((o) => o.soNumber === soNumber)?.lines.find(
+    (l) => l.artworkCode === artworkCode,
+  )
+}
 
 type JobCardPlan = Omit<JobCard, 'requiredSheetsQty' | 'estReelWeightKg' | 'estTrimWasteKg'>
 

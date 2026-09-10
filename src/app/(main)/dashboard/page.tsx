@@ -10,13 +10,14 @@ import { StageStrip } from '@/components/forming'
 import { QcStatusBadge } from '@/lib/shared-ui'
 import {
   FORMING_LOGS, JOB_CARDS, MACHINES, CUTTING_LOGS, REELS, SALES_ORDERS, SCRAP_ENTRIES,
+  orderValue,
 } from '@/data'
 import { PLANT } from '@/config/plant'
 import { formatKg, formatNumber, formatPercent } from '@/lib/utils'
 import type { JobCard } from '@/types'
 
 export default function DashboardPage() {
-  const openValue = SALES_ORDERS.reduce((s, o) => s + o.orderQtyPcs * o.ratePerPc, 0)
+  const openValue = SALES_ORDERS.reduce((s, o) => s + orderValue(o), 0)
   const sheetsToday = FORMING_LOGS.reduce((s, f) => s + f.outputFormedSheets, 0)
   const piecesToday = CUTTING_LOGS.reduce((s, p) => s + p.goodPiecesOutput, 0)
   const consumedKg = FORMING_LOGS.reduce((s, f) => s + f.consumedWeightKg, 0)

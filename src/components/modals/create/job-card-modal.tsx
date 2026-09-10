@@ -6,7 +6,7 @@ import { StandardModal } from '@/components/modals'
 import { MachinePicker } from './master-pickers'
 import { DerivedField, FormGrid, FormSection, Input, Select } from '@/components/ui'
 import { NestingDiagram } from '@/components/forming'
-import { ARTWORKS, MACHINES, MATERIALS, REELS, SALES_ORDERS } from '@/data'
+import { ARTWORKS, MACHINES, MATERIALS, REELS, SALES_ORDERS, orderQty } from '@/data'
 import { DECKLE_MM, PLANT } from '@/config/plant'
 import { calculateCosting, calculateNesting } from '@/lib/layout-calc'
 import { formatKg, formatMicrons, formatNumber, formatPercent } from '@/lib/utils'
@@ -15,19 +15,24 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [soNumber, setSoNumber] = React.useState('')
   const [targetQty, setTargetQty] = React.useState('')
   const [formingMachine, setFormingMachine] = React.useState('')
+  const [lineId, setLineId] = React.useState('')
   const [cuttingMachine, setCuttingMachine] = React.useState('')
   const [reelId, setReelId] = React.useState('')
   const [saving, setSaving] = React.useState(false)
 
   const order = SALES_ORDERS.find((o) => o.soNumber === soNumber)
-  const artwork = ARTWORKS.find((a) => a.artworkCode === order?.artworkCode)
+
+  /* An order can carry several items and each one is its own job, so the line
+     is picked as well as the order. A single-line order picks itself. */
+  const line = order?.lines.find((l) => l.lineId === lineId) ?? (order?.lines.length === 1 ? order.lines[0] : undefined)
+  const artwork = ARTWORKS.find((a) => a.artworkCode === line?.artworkCode)
   const material = MATERIALS.find((m) => m.materialType === artwork?.materialType)
 
-  /* Default the job quantity to the ordered quantity when an order is picked,
-     since a partial run is the exception rather than the rule. */
+  /* Default the job quantity to the line's quantity, since a partial run is
+     the exception rather than the rule. */
   React.useEffect(() => {
-    if (order) setTargetQty(String(order.orderQtyPcs))
-  }, [order])
+    if (line) setTargetQty(String(line.orderQtyPcs))
+  }, [line])
 
   const qtyNum = Number(targetQty) || 0
 
@@ -105,11 +110,33 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 required
                 placeholder="Select a released order"
                 value={soNumber}
-                onChange={(e) => setSoNumber(e.target.value)}
+                onChange={(e) => {
+                  setSoNumber(e.target.value)
+                  setLineId('')
+                }}
                 options={SALES_ORDERS.filter((o) => o.status !== 'DISPATCHED').map((o) => ({
                   value: o.soNumber,
-                  label: `${o.soNumber} — ${o.customerName} (${formatNumber(o.orderQtyPcs)} pcs)`,
+                  label: `${o.soNumber} — ${o.customerName} (${formatNumber(orderQty(o))} pcs, ${o.lines.length} item${o.lines.length > 1 ? 's' : ''})`,
                 }))}
+              />
+              <Select
+                label="Order item"
+                required
+                disabled={!order || order.lines.length < 2}
+                placeholder={
+                  !order
+                    ? 'Select an order first'
+                    : order.lines.length < 2
+                      ? `Item 1 · ${order.lines[0]?.artworkCode ?? ''}`
+                      : 'Select the item to make'
+                }
+                value={lineId}
+                onChange={(e) => setLineId(e.target.value)}
+                options={(order?.lines ?? []).map((l) => ({
+                  value: l.lineId,
+                  label: `${l.lineNo}. ${l.artworkCode} — ${formatNumber(l.orderQtyPcs)} pcs`,
+                }))}
+                helper={order && order.lines.length > 1 ? 'Each item on the order becomes its own job card' : undefined}
               />
               <Input
                 label="Target quantity"
@@ -120,8 +147,8 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 value={targetQty}
                 onChange={(e) => setTargetQty(e.target.value)}
                 helper={
-                  order && qtyNum !== order.orderQtyPcs
-                    ? `Order is for ${formatNumber(order.orderQtyPcs)} pieces`
+                  line && qtyNum !== line.orderQtyPcs
+                    ? `This item is for ${formatNumber(line.orderQtyPcs)} pieces`
                     : undefined
                 }
               />

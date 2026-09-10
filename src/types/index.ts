@@ -178,6 +178,27 @@ export interface Estimation {
   orderValue: number
 }
 
+/**
+ * One item on a sales order.
+ *
+ * A customer PO rarely names a single tray: a pharmaceutical order will carry
+ * the base tray and its lid, a food order several cavity counts of the same
+ * design. Each is its own artwork, its own gauge, its own rate and often its
+ * own delivery date, and each becomes its own job card, so each is its own
+ * line rather than a note against one.
+ */
+export interface SalesOrderLine {
+  lineId: string
+  /** Position on the customer's own PO, so the two can be read side by side. */
+  lineNo: number
+  artworkCode: string
+  materialType: MaterialType
+  thicknessMicrons: number
+  orderQtyPcs: number
+  ratePerPc: number
+  deliveryDate: string
+}
+
 export interface SalesOrder {
   salesOrderId: string
   soNumber: string
@@ -185,12 +206,7 @@ export interface SalesOrder {
   customerId: string
   customerName: string
   clientPoRef: string
-  artworkCode: string
-  materialType: MaterialType
-  thicknessMicrons: number
-  orderQtyPcs: number
-  deliveryDate: string
-  ratePerPc: number
+  lines: SalesOrderLine[]
   status: OrderStatus
   /** Where the order came from: a costed estimation, or straight in. */
   source: 'DIRECT' | 'ESTIMATION'

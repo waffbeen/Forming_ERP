@@ -261,7 +261,7 @@ export function FormGrid({
   children,
   className,
 }: {
-  cols?: 1 | 2 | 3
+  cols?: 1 | 2 | 3 | 4
   children: React.ReactNode
   className?: string
 }) {
@@ -271,6 +271,8 @@ export function FormGrid({
         'grid grid-cols-1 gap-3',
         cols === 2 && 'sm:grid-cols-2',
         cols === 3 && 'sm:grid-cols-2 lg:grid-cols-3',
+        // Four across suits a line-item row, where the fields are narrow.
+        cols === 4 && 'sm:grid-cols-2 lg:grid-cols-4',
         className,
       )}
     >
