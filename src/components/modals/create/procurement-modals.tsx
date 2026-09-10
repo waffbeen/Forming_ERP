@@ -1,10 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import { Lock } from 'lucide-react'
+import { Lock, Plus, Trash2 } from 'lucide-react'
 import { StandardModal } from '@/components/modals'
 import {
-  Checkbox, DerivedField, FormGrid, FormSection, Input, Select, SelectWithCreate, Textarea,
+  Button, Checkbox, DerivedField, FormGrid, FormSection, Input, Select, SelectWithCreate,
 } from '@/components/ui'
 import {
   BINS, ITEMS, JOB_CARDS, PURCHASE_ORDERS, PURCHASE_REQUISITIONS, SUPPLIERS,
@@ -14,6 +14,7 @@ import { PLANT } from '@/config/plant'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import { ItemModal } from './business-modals'
 import { SupplierModal } from './business-modals'
+import type { Item } from '@/types/masters'
 import type { MasterModalProps } from './master-modals'
 
 /**
@@ -44,44 +45,132 @@ const itemOptions = ITEMS.filter((i) => i.status === 'ACTIVE').map((i) => ({
   label: `${i.itemCode} — ${i.itemName}`,
 }))
 
+// ------------------------------------------------------------- Document lines
+
+/** A line on a requisition or an order, before it has been saved. */
+interface DraftLine {
+  /** Local only: the rows are reordered and removed, so they need identity. */
+  key: string
+  itemId: string
+  quantity: string
+  /** Purchase orders only. */
+  rate?: string
+  /** Requisitions only. */
+  requiredBy?: string
+  jobCardNo?: string
+  remarks?: string
+}
+
+let lineSeq = 0
+const newLine = (): DraftLine => ({ key: `L${++lineSeq}`, itemId: '', quantity: '' })
+
+/**
+ * One document, many items. A supplier is not sent a separate order per item
+ * and a department does not raise a separate requisition per item, so both
+ * screens are a header and a grid of lines — the way the paper order they
+ * replace is laid out, and the way the tables underneath already were.
+ */
+function useDraftLines() {
+  const [lines, setLines] = React.useState<DraftLine[]>([newLine()])
+
+  const add = () => setLines((rows) => [...rows, newLine()])
+  const remove = (key: string) =>
+    setLines((rows) => (rows.length === 1 ? [newLine()] : rows.filter((r) => r.key !== key)))
+  const patch = (key: string, values: Partial<DraftLine>) =>
+    setLines((rows) => rows.map((r) => (r.key === key ? { ...r, ...values } : r)))
+  const reset = () => setLines([newLine()])
+
+  /** The same item twice on one document is a keying slip, never an intent. */
+  const duplicates = lines
+    .map((r) => r.itemId)
+    .filter((id, i, all) => id && all.indexOf(id) !== i)
+
+  return { lines, add, remove, patch, reset, duplicates }
+}
+
+/** The line's own header row: what it is, and the button that takes it off. */
+function LineHeading({
+  index,
+  item,
+  onRemove,
+  canRemove,
+}: {
+  index: number
+  item: Item | undefined
+  onRemove: () => void
+  canRemove: boolean
+}) {
+  return (
+    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+      <span className="text-xs font-semibold text-fg-muted">
+        Line {index + 1}
+        {item ? (
+          <span className="ml-2 font-mono font-normal text-fg-default">{item.itemCode}</span>
+        ) : null}
+        {item?.materialType ? (
+          <span className="ml-2 font-mono text-2xs font-normal text-fg-muted">
+            {item.materialType}
+            {item.thicknessMicrons ? ` · ${item.thicknessMicrons} µm` : ''}
+            {item.deckleWidthMm ? ` · ${item.deckleWidthMm} mm` : ''}
+            {item.colour ? ` · ${item.colour}` : ''}
+          </span>
+        ) : null}
+      </span>
+      {canRemove ? (
+        <Button variant="quiet" icon={Trash2} onClick={onRemove}>
+          Remove
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
 // ------------------------------------------------------- Purchase requisition
 
 export function RequisitionModal({ isOpen, onClose }: MasterModalProps) {
   const { saving, save } = useMockSave(onClose)
   const [department, setDepartment] = React.useState('')
-  const [itemId, setItemId] = React.useState('')
-  const [quantity, setQuantity] = React.useState('')
-  const [requiredBy, setRequiredBy] = React.useState('')
-  const [jobCardNo, setJobCardNo] = React.useState('')
-  const [remarks, setRemarks] = React.useState('')
-
-  const item = ITEMS.find((i) => i.itemId === itemId)
-  const onHand = item ? stockOnHand(item.itemId) : 0
-  const onOrder = item ? onOrderQty(item.itemId) : 0
-  const qty = Number(quantity) || 0
-
-  /* Free stock plus what is already on order tells the planner whether this
-     requisition is actually needed, or whether a PO already covers it. */
-  const covered = item ? onHand + onOrder >= item.reorderLevel : false
+  const { lines, add, remove, patch, reset, duplicates } = useDraftLines()
 
   React.useEffect(() => {
-    if (item && !quantity) setQuantity(String(Math.max(item.reorderLevel - onHand - onOrder, 0)))
-  }, [item, quantity, onHand, onOrder])
+    if (isOpen) reset()
+    // reset is stable for the life of one open screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
+
+  /** What each line comes to, and what is wrong with it. */
+  const rows = lines.map((line) => {
+    const item = ITEMS.find((i) => i.itemId === line.itemId)
+    const qty = Number(line.quantity) || 0
+    const onHand = item ? stockOnHand(item.itemId) : 0
+    const onOrder = item ? onOrderQty(item.itemId) : 0
+    /* Free stock plus what is already on order tells the planner whether the
+       line is needed at all, or whether an open order already covers it. */
+    const covered = item ? onHand + onOrder >= item.reorderLevel : false
+    return { line, item, qty, onHand, onOrder, covered, value: qty * (item?.ratePerUom ?? 0) }
+  })
+
+  const filled = rows.filter((r) => r.item)
+  const total = filled.reduce((sum, r) => sum + r.value, 0)
+  const incomplete = rows.some((r) => !r.item || r.qty <= 0 || !r.line.requiredBy)
 
   return (
     <StandardModal
       isOpen={isOpen}
       onClose={onClose}
       title="New Purchase Requisition"
-      size="lg"
+      subtitle={filled.length > 1 ? `${filled.length} items on one requisition` : undefined}
+      size="master"
       onSave={save}
       saving={saving}
-      saveDisabled={!department || !itemId || qty <= 0 || !requiredBy}
+      saveDisabled={!department || incomplete || duplicates.length > 0}
       saveLabel="Submit for approval"
       footerNote={
-        item
-          ? `${formatNumber(onHand, 1)} ${item.uom} on hand, ${formatNumber(onOrder)} on order`
-          : 'Pick an item to see its position'
+        duplicates.length > 0
+          ? 'The same item is on two lines'
+          : total > 0
+            ? `${filled.length} ${filled.length === 1 ? 'line' : 'lines'} · about ${formatCurrency(total, 0)} at standard rates`
+            : 'Add what the department needs'
       }
     >
       <FormSection title="Requisition">
@@ -104,57 +193,97 @@ export function RequisitionModal({ isOpen, onClose }: MasterModalProps) {
         </FormGrid>
       </FormSection>
 
-      <FormSection title="Line">
-        <FormGrid cols={2}>
-          <SelectWithCreate
-            label="Item"
-            required
-            placeholder="Select or add an item"
-            value={itemId}
-            onChange={setItemId}
-            options={itemOptions}
-            createLabel="New item"
-            renderCreateModal={(props) => <ItemModal {...props} />}
-          />
-          <Input
-            label="Quantity"
-            unit={item?.uom ?? 'unit'}
-            required
-            type="number"
-            step="0.1"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            helper={
-              covered && qty > 0
-                ? 'Stock plus what is on order already covers the reorder level'
-                : undefined
-            }
-          />
-          <Input label="Required by" required type="date" value={requiredBy} onChange={(e) => setRequiredBy(e.target.value)} />
-          <Select
-            label="Against job card"
-            placeholder="None, stock replenishment"
-            value={jobCardNo}
-            onChange={(e) => setJobCardNo(e.target.value)}
-            options={JOB_CARDS.map((j) => ({ value: j.jobCardNo, label: `${j.jobCardNo} — ${j.customerName}` }))}
-          />
-        </FormGrid>
-      </FormSection>
+      <FormSection
+        title="Items"
+        description="One requisition can ask for as many items as the department needs."
+      >
+        <div className="space-y-2.5">
+          {rows.map(({ line, item, qty, onHand, onOrder, covered }, index) => (
+            <div key={line.key} className="rounded-xl border border-bd-default px-3 py-3">
+              <LineHeading
+                index={index}
+                item={item}
+                canRemove={lines.length > 1}
+                onRemove={() => remove(line.key)}
+              />
+              <FormGrid cols={3}>
+                <SelectWithCreate
+                  label="Item"
+                  required
+                  placeholder="Select or add an item"
+                  value={line.itemId}
+                  onChange={(next) => {
+                    const picked = ITEMS.find((i) => i.itemId === next)
+                    const shortfall = picked
+                      ? Math.max(
+                          picked.reorderLevel - stockOnHand(picked.itemId) - onOrderQty(picked.itemId),
+                          0,
+                        )
+                      : 0
+                    patch(line.key, {
+                      itemId: next,
+                      quantity: line.quantity || (shortfall > 0 ? String(shortfall) : ''),
+                    })
+                  }}
+                  options={itemOptions}
+                  error={
+                    line.itemId && duplicates.includes(line.itemId)
+                      ? 'Already on another line'
+                      : false
+                  }
+                  createLabel="New item"
+                  renderCreateModal={(props) => <ItemModal {...props} />}
+                />
+                <Input
+                  label="Quantity"
+                  unit={item?.uom ?? 'unit'}
+                  required
+                  type="number"
+                  step="0.1"
+                  value={line.quantity}
+                  onChange={(e) => patch(line.key, { quantity: e.target.value })}
+                  helper={
+                    covered && qty > 0
+                      ? 'Stock plus what is on order already covers the reorder level'
+                      : item
+                        ? `${formatNumber(onHand, 1)} on hand · ${formatNumber(onOrder)} on order`
+                        : undefined
+                  }
+                />
+                <Input
+                  label="Required by"
+                  required
+                  type="date"
+                  value={line.requiredBy ?? ''}
+                  onChange={(e) => patch(line.key, { requiredBy: e.target.value })}
+                />
+                <Select
+                  label="Against job card"
+                  placeholder="None, stock replenishment"
+                  value={line.jobCardNo ?? ''}
+                  onChange={(e) => patch(line.key, { jobCardNo: e.target.value })}
+                  options={JOB_CARDS.map((j) => ({
+                    value: j.jobCardNo,
+                    label: `${j.jobCardNo} — ${j.customerName}`,
+                  }))}
+                />
+                <Input
+                  label="Justification"
+                  className="sm:col-span-2"
+                  value={line.remarks ?? ''}
+                  onChange={(e) => patch(line.key, { remarks: e.target.value })}
+                  placeholder="Why this is needed"
+                />
+              </FormGrid>
+            </div>
+          ))}
+        </div>
 
-      <FormSection title="Position">
-        <FormGrid cols={3}>
-          <DerivedField label="On hand" value={item ? `${formatNumber(onHand, 1)} ${item.uom}` : '—'} />
-          <DerivedField label="On order" value={item ? `${formatNumber(onOrder)} ${item.uom}` : '—'} />
-          <DerivedField
-            label="Reorder level"
-            value={item ? `${formatNumber(item.reorderLevel)} ${item.uom}` : '—'}
-            emphasis={Boolean(item && onHand < item.reorderLevel)}
-          />
-        </FormGrid>
-      </FormSection>
-
-      <FormSection title="Remarks">
-        <Textarea label="Justification" value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} />
+        <div className="mt-2.5">
+          <Button icon={Plus} onClick={add}>
+            Add another item
+          </Button>
+        </div>
       </FormSection>
     </StandardModal>
   )
@@ -166,34 +295,48 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
   const { saving, save } = useMockSave(onClose)
   const [supplierId, setSupplierId] = React.useState('')
   const [prNumber, setPrNumber] = React.useState('')
-  const [itemId, setItemId] = React.useState('')
-  const [quantity, setQuantity] = React.useState('')
-  const [rate, setRate] = React.useState('')
   const [gst, setGst] = React.useState('18')
   const [expected, setExpected] = React.useState('')
-  const [thickness, setThickness] = React.useState('')
-  const [deckle, setDeckle] = React.useState('620')
-
-  const supplier = SUPPLIERS.find((s) => s.supplierId === supplierId)
-  const item = ITEMS.find((i) => i.itemId === itemId)
-  const isReel = item?.itemType === 'RAW_MATERIAL'
-  const qty = Number(quantity) || 0
-  const rateNum = Number(rate) || 0
-  const net = qty * rateNum
-  const total = net * (1 + (Number(gst) || 0) / 100)
-
-  /* A supplier may only be ordered from for polymers they are approved for. */
-  const polymerMismatch = Boolean(
-    isReel && supplier && supplier.materialsSupplied.length > 0 && item &&
-      !supplier.materialsSupplied.some((m) => item.itemCode.includes(m)),
-  )
-
-  const thicknessNum = Number(thickness) || 0
-  const belowFloor = isReel && thicknessNum > 0 && thicknessNum < PLANT.minMicrons
+  const { lines, add, remove, patch, reset, duplicates } = useDraftLines()
 
   React.useEffect(() => {
-    if (item) setRate(String(item.ratePerUom))
-  }, [item])
+    if (isOpen) reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
+
+  const supplier = SUPPLIERS.find((s) => s.supplierId === supplierId)
+
+  /**
+   * Each line, priced. The reel specification is not asked for again: it is
+   * what the item is, so the order carries the item's own gauge and deckle and
+   * the supplier is being asked for exactly that.
+   */
+  const rows = lines.map((line) => {
+    const item = ITEMS.find((i) => i.itemId === line.itemId)
+    const qty = Number(line.quantity) || 0
+    const rate = Number(line.rate) || 0
+    const isReel = item?.itemType === 'RAW_MATERIAL'
+
+    /* A supplier may only be ordered from for the polymers they are approved
+       for, and that is a per-line question once one order carries many items. */
+    const polymerMismatch = Boolean(
+      isReel &&
+        supplier &&
+        supplier.materialsSupplied.length > 0 &&
+        item?.materialType &&
+        !supplier.materialsSupplied.includes(item.materialType),
+    )
+
+    const belowMoq = Boolean(item?.minOrderQtyKg && qty > 0 && qty < item.minOrderQtyKg)
+
+    return { line, item, qty, rate, isReel, polymerMismatch, belowMoq, value: qty * rate }
+  })
+
+  const filled = rows.filter((r) => r.item)
+  const net = rows.reduce((sum, r) => sum + r.value, 0)
+  const total = net * (1 + (Number(gst) || 0) / 100)
+  const incomplete = rows.some((r) => !r.item || r.qty <= 0)
+  const blocked = rows.some((r) => r.polymerMismatch)
 
   const approved = PURCHASE_REQUISITIONS.filter(
     (p) => p.prStatus === 'APPROVED' || p.prStatus === 'SUBMITTED',
@@ -204,13 +347,29 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
       isOpen={isOpen}
       onClose={onClose}
       title="New Purchase Order"
-      badge={supplier ? { label: `${supplier.qualityRatingPct.toFixed(1)} % IQC first pass`, tone: supplier.qualityRatingPct >= 95 ? 'success' : 'warning' } : undefined}
-      size="lg"
+      subtitle={filled.length > 1 ? `${filled.length} items on one order` : undefined}
+      badge={
+        supplier
+          ? {
+              label: `${supplier.qualityRatingPct.toFixed(1)} % IQC first pass`,
+              tone: supplier.qualityRatingPct >= 95 ? 'success' : 'warning',
+            }
+          : undefined
+      }
+      size="master"
       onSave={save}
       saving={saving}
-      saveDisabled={!supplierId || !itemId || qty <= 0 || !expected || polymerMismatch || belowFloor}
+      saveDisabled={!supplierId || !expected || incomplete || blocked || duplicates.length > 0}
       saveLabel="Raise purchase order"
-      footerNote={total > 0 ? `Order value ${formatCurrency(total, 0)} including GST` : undefined}
+      footerNote={
+        blocked
+          ? `${supplier?.supplierName ?? 'This supplier'} is not approved for every polymer on the order`
+          : duplicates.length > 0
+            ? 'The same item is on two lines'
+            : total > 0
+              ? `${filled.length} ${filled.length === 1 ? 'line' : 'lines'} · ${formatCurrency(total, 0)} including GST`
+              : 'Add what is being ordered'
+      }
     >
       <FormSection title="Order">
         <FormGrid cols={2}>
@@ -234,7 +393,14 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
             onChange={(e) => setPrNumber(e.target.value)}
             options={approved.map((p) => ({ value: p.prNumber, label: `${p.prNumber} — ${p.department}` }))}
           />
-          <Input label="Expected delivery" required type="date" value={expected} onChange={(e) => setExpected(e.target.value)} helper={supplier ? `${supplier.leadTimeDays} day lead time` : undefined} />
+          <Input
+            label="Expected delivery"
+            required
+            type="date"
+            value={expected}
+            onChange={(e) => setExpected(e.target.value)}
+            helper={supplier ? `${supplier.leadTimeDays} day lead time` : undefined}
+          />
           <Select
             label="GST"
             value={gst}
@@ -248,36 +414,112 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
         </FormGrid>
       </FormSection>
 
-      <FormSection title="Line">
-        <FormGrid cols={2}>
-          <SelectWithCreate
-            label="Item"
-            required
-            placeholder="Select or add an item"
-            value={itemId}
-            onChange={setItemId}
-            options={itemOptions}
-            error={polymerMismatch ? `${supplier?.supplierName} is not approved for this polymer` : false}
-            createLabel="New item"
-            renderCreateModal={(props) => <ItemModal {...props} />}
-          />
-          <Input label="Quantity" unit={item?.uom ?? 'unit'} required type="number" step="0.1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-          <Input label="Rate" unit={`₹ / ${item?.uom ?? 'unit'}`} type="number" step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} />
-          <DerivedField label="Line value" value={net > 0 ? formatCurrency(net, 0) : '—'} />
-          {isReel ? (
-            <>
-              <Input
-                label="Thickness"
-                unit="µm"
-                type="number"
-                value={thickness}
-                onChange={(e) => setThickness(e.target.value)}
-                error={belowFloor ? `Below the ${PLANT.minMicrons} µm plant floor` : false}
+      <FormSection
+        title="Items"
+        description="One order, as many items as the supplier is being sent. Each line opens at what the item master says it is bought at."
+      >
+        <div className="space-y-2.5">
+          {rows.map(({ line, item, qty, rate, isReel, polymerMismatch, belowMoq, value }, index) => (
+            <div
+              key={line.key}
+              className={
+                polymerMismatch
+                  ? 'rounded-xl border border-error/50 bg-error-subtle px-3 py-3'
+                  : 'rounded-xl border border-bd-default px-3 py-3'
+              }
+            >
+              <LineHeading
+                index={index}
+                item={item}
+                canRemove={lines.length > 1}
+                onRemove={() => remove(line.key)}
               />
-              <Input label="Deckle width" unit="mm" type="number" value={deckle} onChange={(e) => setDeckle(e.target.value)} />
-            </>
-          ) : null}
-          <DerivedField label="Total incl. GST" value={total > 0 ? formatCurrency(total, 0) : '—'} emphasis />
+              <FormGrid cols={3}>
+                <SelectWithCreate
+                  label="Item"
+                  required
+                  placeholder="Select or add an item"
+                  value={line.itemId}
+                  onChange={(next) => {
+                    /* The item brings its own price and its own minimum, so the
+                       line opens on them rather than on an empty box. */
+                    const picked = ITEMS.find((i) => i.itemId === next)
+                    patch(line.key, {
+                      itemId: next,
+                      rate: picked ? String(picked.ratePerUom) : '',
+                      quantity:
+                        line.quantity ||
+                        (picked?.minOrderQtyKg ? String(picked.minOrderQtyKg) : ''),
+                    })
+                  }}
+                  options={itemOptions}
+                  error={
+                    polymerMismatch
+                      ? `${supplier?.supplierName} is not approved for ${item?.materialType}`
+                      : line.itemId && duplicates.includes(line.itemId)
+                        ? 'Already on another line'
+                        : false
+                  }
+                  createLabel="New item"
+                  renderCreateModal={(props) => <ItemModal {...props} />}
+                />
+                <Input
+                  label="Quantity"
+                  unit={item?.uom ?? 'unit'}
+                  required
+                  type="number"
+                  step="0.1"
+                  value={line.quantity}
+                  onChange={(e) => patch(line.key, { quantity: e.target.value })}
+                  helper={
+                    belowMoq
+                      ? `Supplier's minimum is ${formatNumber(item?.minOrderQtyKg ?? 0)} ${item?.uom}`
+                      : undefined
+                  }
+                />
+                <Input
+                  label="Rate"
+                  unit={`₹ / ${item?.uom ?? 'unit'}`}
+                  type="number"
+                  step="0.01"
+                  value={line.rate ?? ''}
+                  onChange={(e) => patch(line.key, { rate: e.target.value })}
+                />
+                {isReel ? (
+                  <DerivedField
+                    label="Ordered specification"
+                    value={
+                      item?.thicknessMicrons
+                        ? `${item.thicknessMicrons} µm · ${item.deckleWidthMm ?? '—'} mm${item.colour ? ` · ${item.colour}` : ''}`
+                        : 'Not specified on the item'
+                    }
+                  />
+                ) : null}
+                <DerivedField
+                  label="Line value"
+                  value={value > 0 ? formatCurrency(value, 0) : '—'}
+                  emphasis={value > 0}
+                />
+                {isReel && item?.isFoodGrade ? (
+                  <DerivedField label="Incoming QC" value="Migration certificate required" />
+                ) : null}
+              </FormGrid>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-2.5">
+          <Button icon={Plus} onClick={add}>
+            Add another item
+          </Button>
+        </div>
+      </FormSection>
+
+      <FormSection title="Order value">
+        <FormGrid cols={3}>
+          <DerivedField label="Net" value={net > 0 ? formatCurrency(net, 0) : '—'} />
+          <DerivedField label={`GST at ${gst} %`} value={net > 0 ? formatCurrency(total - net, 0) : '—'} />
+          <DerivedField label="Total" value={total > 0 ? formatCurrency(total, 0) : '—'} emphasis />
         </FormGrid>
       </FormSection>
     </StandardModal>
