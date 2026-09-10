@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { ClipboardCheck } from 'lucide-react'
 import { StandardModal } from '@/components/modals/standard-modal'
+import { EmployeePicker } from './master-pickers'
 import { Button, DerivedField, FormGrid, FormSection, Input, Select } from '@/components/ui'
 import { DOCUMENTS, SORTING_REJECT_REASONS } from '@/config/plant'
 import { CUTTING_LOGS, EMPLOYEES, JOB_CARDS, USERS } from '@/data'
@@ -98,12 +99,12 @@ export function SortingEntryModal({
             onChange={(e) => setJobCardNo(e.target.value)}
             options={jobOptions}
           />
-          <Select
+          <EmployeePicker
             label="Sorted by"
             required
             placeholder="Select operator"
             value={sorter}
-            onChange={(e) => setSorter(e.target.value)}
+            onChange={setSorter}
             options={sorterOptions}
           />
           <Select

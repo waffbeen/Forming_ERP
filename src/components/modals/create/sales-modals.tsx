@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Calculator, Send } from 'lucide-react'
 import { StandardModal } from '@/components/modals/standard-modal'
 import { CustomerModal } from './master-modals'
+import { ArtworkPicker, MaterialPicker } from './master-pickers'
 import {
   DerivedField, FormGrid, FormSection, Input, Select, SelectWithCreate, Textarea,
 } from '@/components/ui'
@@ -150,22 +151,22 @@ export function EnquiryModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-          <Select
+          <ArtworkPicker
             label="Existing artwork"
             placeholder="If it matches one on file"
             value={artworkCode}
-            onChange={(e) => setArtworkCode(e.target.value)}
+            onChange={setArtworkCode}
             options={ARTWORKS.map((a) => ({
               value: a.artworkCode,
               label: `${a.artworkCode} — ${a.clientProductRef}`,
             }))}
             helper="Leave blank for a design that has no drawing yet"
           />
-          <Select
+          <MaterialPicker
             label="Material"
             placeholder="Select polymer"
             value={material}
-            onChange={(e) => setMaterial(e.target.value as MaterialType)}
+            onChange={(next) => setMaterial(next as MaterialType)}
             options={MATERIAL_OPTIONS}
           />
           <Input
@@ -381,12 +382,12 @@ export function EstimationModal({ isOpen, onClose }: { isOpen: boolean; onClose:
 
       <FormSection title="Specification">
         <FormGrid cols={3}>
-          <Select
+          <MaterialPicker
             label="Material"
             required
             placeholder="Select polymer"
             value={material}
-            onChange={(e) => setMaterial(e.target.value as MaterialType)}
+            onChange={(next) => setMaterial(next as MaterialType)}
             options={MATERIAL_OPTIONS}
           />
           <Input label="Thickness" unit="µm" required type="number" value={micron} onChange={(e) => setMicron(e.target.value)} />

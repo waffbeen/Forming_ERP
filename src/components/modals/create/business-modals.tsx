@@ -320,10 +320,12 @@ export function ItemModal({ isOpen, onClose, onCreated, initialName }: MasterMod
 
 // ------------------------------------------------------------------- Product
 
-export function ProductModal({ isOpen, onClose }: MasterModalProps) {
-  const { saving, save } = useMockSave(onClose)
+export function ProductModal({ isOpen, onClose, onCreated, initialName }: MasterModalProps) {
+  const { saving, save } = useMockSave(onClose, onCreated, () =>
+    productName ? { value: `NEW-PRD-${Date.now()}`, label: productName } : null,
+  )
   const [jobCardNo, setJobCardNo] = React.useState('')
-  const [productName, setProductName] = React.useState('')
+  const [productName, setProductName] = React.useState(initialName ?? '')
   const [categoryId, setCategoryId] = React.useState('')
   const [isSafetyStock, setIsSafetyStock] = React.useState(false)
   const [safetyQty, setSafetyQty] = React.useState('')
@@ -475,10 +477,12 @@ export function ProductModal({ isOpen, onClose }: MasterModalProps) {
 
 // ------------------------------------------------------------------- Process
 
-export function ProcessModal({ isOpen, onClose }: MasterModalProps) {
-  const { saving, save } = useMockSave(onClose)
+export function ProcessModal({ isOpen, onClose, onCreated, initialName }: MasterModalProps) {
+  const { saving, save } = useMockSave(onClose, onCreated, () =>
+    name ? { value: `NEW-PRC-${Date.now()}`, label: name } : null,
+  )
   const [code, setCode] = React.useState('')
-  const [name, setName] = React.useState('')
+  const [name, setName] = React.useState(initialName ?? '')
   const [stage, setStage] = React.useState('')
   const [department, setDepartment] = React.useState('')
   const [typeOfCharges, setTypeOfCharges] = React.useState('PER_PIECE')

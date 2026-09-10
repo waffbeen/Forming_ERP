@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { HeaderSteps } from 'indas-ui'
 import { StandardModal } from '@/components/modals'
+import { EmployeePicker } from '@/components/modals'
 import {
   Badge, Button, Checkbox, DerivedField, FormGrid, FormSection, Input, Select,
 } from '@/components/ui'
@@ -449,14 +450,15 @@ export function ProductionRunModal({
           <FormSection title="Signatures">
             <FormGrid cols={2}>
               <div className="flex items-end gap-2">
-                <Select
-                  label="Machine operator"
-                  className="flex-1"
-                  placeholder="Select operator"
-                  value={clearance.operatorName}
-                  onChange={(e) => setClearance((c) => ({ ...c, operatorName: e.target.value }))}
-                  options={operatorOptions}
-                />
+                <div className="flex-1">
+                  <EmployeePicker
+                    label="Machine operator"
+                    placeholder="Select operator"
+                    value={clearance.operatorName}
+                    onChange={(next) => setClearance((c) => ({ ...c, operatorName: next }))}
+                    options={operatorOptions}
+                  />
+                </div>
                 <Button
                   variant={clearance.operatorSignedAt ? 'ghost' : 'primary'}
                   disabled={!clearance.operatorName || Boolean(clearance.operatorSignedAt)}
@@ -466,14 +468,15 @@ export function ProductionRunModal({
                 </Button>
               </div>
               <div className="flex items-end gap-2">
-                <Select
-                  label="Production / QC supervisor"
-                  className="flex-1"
-                  placeholder="Select supervisor"
-                  value={clearance.supervisorName}
-                  onChange={(e) => setClearance((c) => ({ ...c, supervisorName: e.target.value }))}
-                  options={qcOptions}
-                />
+                <div className="flex-1">
+                  <EmployeePicker
+                    label="Production / QC supervisor"
+                    placeholder="Select supervisor"
+                    value={clearance.supervisorName}
+                    onChange={(next) => setClearance((c) => ({ ...c, supervisorName: next }))}
+                    options={qcOptions}
+                  />
+                </div>
                 <Button
                   variant={clearance.supervisorSignedAt ? 'ghost' : 'primary'}
                   disabled={!clearance.supervisorName || Boolean(clearance.supervisorSignedAt)}
@@ -492,20 +495,20 @@ export function ProductionRunModal({
         <>
           <FormSection title={`First piece approval · ${qcDocumentNo}`}>
             <FormGrid cols={3}>
-              <Select
+              <EmployeePicker
                 label="Produced by operator"
                 required
                 placeholder="Select operator"
                 value={fpaOperator}
-                onChange={(e) => setFpaOperator(e.target.value)}
+                onChange={setFpaOperator}
                 options={operatorOptions}
               />
-              <Select
+              <EmployeePicker
                 label="Verified by QC"
                 required
                 placeholder="Select QC executive"
                 value={fpaQc}
-                onChange={(e) => setFpaQc(e.target.value)}
+                onChange={setFpaQc}
                 options={qcOptions}
               />
               <div className="flex items-end">

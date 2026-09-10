@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Lock } from 'lucide-react'
 import { StandardModal } from '@/components/modals'
+import { EmployeePicker, ReelPicker } from './master-pickers'
 import { Checkbox, DerivedField, FormGrid, FormSection, Input, Select } from '@/components/ui'
 import { EMPLOYEES, JOB_CARDS, REELS, USERS } from '@/data'
 import { formatKg, formatNumber } from '@/lib/utils'
@@ -110,14 +111,14 @@ export function FormingEntryModal({ isOpen, onClose }: { isOpen: boolean; onClos
               label: `${j.jobCardNo} — ${j.customerName}`,
             }))}
           />
-          <Select
+          <ReelPicker
             label="Issued reel"
             required
             placeholder="Select reel"
             value={reelId}
-            onChange={(e) => {
-              setReelId(e.target.value)
-              const r = REELS.find((x) => x.reelId === e.target.value)
+            onChange={(next) => {
+              setReelId(next)
+              const r = REELS.find((x) => x.reelId === next)
               if (r) setIssuedKg(String(r.grossWeightKg))
             }}
             options={REELS.filter(
@@ -128,12 +129,12 @@ export function FormingEntryModal({ isOpen, onClose }: { isOpen: boolean; onClos
             }))}
           />
           <DerivedField label="Machine" value={job?.formingMachineCode ?? '—'} />
-          <Select
+          <EmployeePicker
             label="Operator"
             required
             placeholder="Select operator"
             value={operator}
-            onChange={(e) => setOperator(e.target.value)}
+            onChange={setOperator}
             options={EMPLOYEES.filter((e) => e.department === 'Production' && e.status === 'ACTIVE').map((e) => ({
               value: e.employeeId,
               label: `${USERS.find((u) => u.userId === e.userId)?.userName ?? e.employeeCode} — ${e.employeeCode}`,

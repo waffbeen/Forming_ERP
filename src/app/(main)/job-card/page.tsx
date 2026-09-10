@@ -1,10 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import { Flame, Printer, Scissors, Lock, Plus, Weight } from 'lucide-react'
+import { Printer, Plus } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
-  Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid, Tabs,
+  Button, Column, DataTable, Divider, SpecList, StackedCell, Tabs,
 } from '@/components/ui'
 import { DetailModal, JobCardModal } from '@/components/modals'
 import { NestingDiagram, StageStrip } from '@/components/forming'
@@ -39,9 +39,6 @@ export default function JobCardPage() {
         bedPitchMm: PLANT.bedLengthMm,
       })
     : null
-
-  const issuedTodayKg = FORMING_LOGS.reduce((sum, f) => sum + f.issuedWeightKg, 0)
-  const returnedTodayKg = FORMING_LOGS.reduce((sum, f) => sum + f.returnedReelWeightKg, 0)
 
   const columns: Column<JobCard>[] = [
     {
@@ -81,36 +78,6 @@ export default function JobCardPage() {
         }
       />
 
-      <StatsGrid>
-        <StatsCard
-          label="In forming"
-          value={String(JOB_CARDS.filter((j) => j.stages.FORMING === 'ACTIVE').length)}
-          note="Machines TF-01, TF-02"
-          icon={Flame}
-        />
-        <StatsCard
-          label="In cutting"
-          value={String(JOB_CARDS.filter((j) => j.stages.CUTTING === 'ACTIVE').length)}
-          note={`${PLANT.sheetsPerStroke} sheets per stroke, double-sided`}
-          icon={Scissors}
-        />
-        <StatsCard
-          label="Held at line clearance"
-          value={String(JOB_CARDS.filter((j) => Object.values(j.stages).includes('BLOCKED')).length)}
-          note="JC-2609-118 blocked"
-          noteTone="bad"
-          icon={Lock}
-        />
-        <StatsCard
-          label="Reel kg issued"
-          value={formatNumber(issuedTodayKg, 1)}
-          unit="kg"
-          note={`${formatKg(returnedTodayKg)} returned to store`}
-          noteTone="good"
-          icon={Weight}
-        />
-      </StatsGrid>
-
       <>
         <DataTable
           title="Job card queue"
@@ -124,6 +91,27 @@ export default function JobCardPage() {
           selectedKey={selectedId}
           onSelect={(r) => setSelectedId(r.jobCardId)}
           onOpen={(r) => { setSelectedId(r.jobCardId); setDetailOpen(true) }}
+          summary={{
+            jc: { type: 'custom', customFn: (r) => `${r.length} job cards` },
+            material: {
+              type: 'custom',
+              customFn: (r) => {
+                const held = r.filter((j) => Object.values(j.stages).includes('BLOCKED')).length
+                return held > 0 ? `${held} held at line clearance` : 'None held'
+              },
+            },
+            target: { type: 'custom', customFn: (r) => formatNumber(r.reduce((sum, j) => sum + j.targetPiecesQty, 0)) },
+            sheets: { type: 'custom', customFn: (r) => formatNumber(r.reduce((sum, j) => sum + j.requiredSheetsQty, 0)) },
+            kg: { type: 'custom', customFn: (r) => formatNumber(r.reduce((sum, j) => sum + j.estReelWeightKg, 0), 1) },
+            stage: {
+              type: 'custom',
+              customFn: (r) => {
+                const forming = r.filter((j) => j.stages.FORMING === 'ACTIVE').length
+                const cutting = r.filter((j) => j.stages.CUTTING === 'ACTIVE').length
+                return `${forming} forming · ${cutting} cutting`
+              },
+            },
+          }}
         />
 
         <DetailModal

@@ -118,10 +118,12 @@ export function CustomerModal({ isOpen, onClose, onCreated, initialName }: Maste
 
 // ------------------------------------------------------------------- Artwork
 
-export function ArtworkModal({ isOpen, onClose }: MasterModalProps) {
-  const { saving, save } = useMockSave(onClose)
+export function ArtworkModal({ isOpen, onClose, onCreated, initialName }: MasterModalProps) {
+  const { saving, save } = useMockSave(onClose, onCreated, () =>
+    productRef ? { value: `NEW-AW-${Date.now()}`, label: productRef } : null,
+  )
   const [customerId, setCustomerId] = React.useState('')
-  const [productRef, setProductRef] = React.useState('')
+  const [productRef, setProductRef] = React.useState(initialName ?? '')
   const [trayType, setTrayType] = React.useState('')
   const [materialType, setMaterialType] = React.useState('')
   const [thickness, setThickness] = React.useState('')
@@ -202,13 +204,15 @@ export function ArtworkModal({ isOpen, onClose }: MasterModalProps) {
 
           <FormSection title="Material">
             <FormGrid cols={3}>
-              <Select
+              <SelectWithCreate
                 label="Polymer"
                 required
                 placeholder="Select polymer"
                 value={materialType}
-                onChange={(e) => setMaterialType(e.target.value)}
+                onChange={setMaterialType}
                 options={MATERIALS.map((m) => ({ value: m.materialType, label: `${m.materialType} — ${m.grade}` }))}
+                createLabel="New material grade"
+                renderCreateModal={(props) => <MaterialModal {...props} />}
               />
               <Select
                 label="Tray type"
@@ -390,8 +394,10 @@ export function MaterialModal({ isOpen, onClose, onCreated, initialName }: Maste
 
 // ---------------------------------------------------------------------- Reel
 
-export function ReelModal({ isOpen, onClose }: MasterModalProps) {
-  const { saving, save } = useMockSave(onClose)
+export function ReelModal({ isOpen, onClose, onCreated }: MasterModalProps) {
+  const { saving, save } = useMockSave(onClose, onCreated, () =>
+    polymer ? { value: `NEW-RL-${Date.now()}`, label: `${polymer} ${thickness || '—'} µm` } : null,
+  )
   const [grn, setGrn] = React.useState('')
   const [supplier, setSupplier] = React.useState('')
   const [polymer, setPolymer] = React.useState('')
@@ -431,13 +437,15 @@ export function ReelModal({ isOpen, onClose }: MasterModalProps) {
 
       <FormSection title="Reel specification">
         <FormGrid cols={2}>
-          <Select
+          <SelectWithCreate
             label="Polymer"
             required
             placeholder="Select polymer"
             value={polymer}
-            onChange={(e) => setPolymer(e.target.value)}
+            onChange={setPolymer}
             options={MATERIALS.map((m) => ({ value: m.materialType, label: `${m.materialType} — ${m.grade}` }))}
+            createLabel="New material grade"
+            renderCreateModal={(props) => <MaterialModal {...props} />}
           />
           <Input
             label="Measured thickness"
@@ -608,13 +616,15 @@ export function DieModal({ isOpen, onClose, onCreated, initialName }: MasterModa
       <FormSection title="Identity">
         <FormGrid cols={2}>
           <Input label="Die code" required mono value={code} onChange={(e) => setCode(e.target.value)} placeholder="FD-0312" />
-          <Select
+          <SelectWithCreate
             label="Artwork"
             required
             placeholder="Select artwork"
             value={artworkCode}
-            onChange={(e) => setArtworkCode(e.target.value)}
+            onChange={setArtworkCode}
             options={ARTWORKS.map((a) => ({ value: a.artworkCode, label: `${a.artworkCode} — ${a.clientProductRef}` }))}
+            createLabel="New artwork"
+            renderCreateModal={(props) => <ArtworkModal {...props} />}
           />
           <Select
             label="Stage"
@@ -685,9 +695,11 @@ const CERTIFICATIONS = [
   'Scheduling',
 ]
 
-export function OperatorModal({ isOpen, onClose }: MasterModalProps) {
-  const { saving, save } = useMockSave(onClose)
-  const [name, setName] = React.useState('')
+export function OperatorModal({ isOpen, onClose, onCreated, initialName }: MasterModalProps) {
+  const { saving, save } = useMockSave(onClose, onCreated, () =>
+    name ? { value: `NEW-OP-${Date.now()}`, label: name } : null,
+  )
+  const [name, setName] = React.useState(initialName ?? '')
   const [empCode, setEmpCode] = React.useState('')
   const [role, setRole] = React.useState('')
   const [shift, setShift] = React.useState('A')

@@ -221,10 +221,12 @@ const CERTIFICATIONS = [
   'Sorting', 'Carton close', 'GRN', 'Reel issue', 'Returns', 'Scheduling',
 ]
 
-export function EmployeeModal({ isOpen, onClose }: MasterModalProps) {
-  const { saving, save } = useMockSave(onClose)
+export function EmployeeModal({ isOpen, onClose, onCreated, initialName }: MasterModalProps) {
+  const { saving, save } = useMockSave(onClose, onCreated, () =>
+    empCode ? { value: `NEW-EMP-${Date.now()}`, label: empCode } : null,
+  )
   const [userId, setUserId] = React.useState('')
-  const [empCode, setEmpCode] = React.useState('')
+  const [empCode, setEmpCode] = React.useState(initialName ?? '')
   const [department, setDepartment] = React.useState('')
   const [shift, setShift] = React.useState('A')
   const [doj, setDoj] = React.useState('')

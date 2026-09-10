@@ -23,3 +23,7 @@ export {
 
 // Procurement
 export { RequisitionModal, PurchaseOrderModal, GrnModal } from './procurement-modals'
+
+// Master pickers: a dropdown that can create the record it is selecting.
+export * from './master-pickers'
+export type { PickerProps } from './master-pickers'

@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { ClipboardList } from 'lucide-react'
 import { StandardModal } from '@/components/modals'
+import { MachinePicker } from './master-pickers'
 import { DerivedField, FormGrid, FormSection, Input, Select } from '@/components/ui'
 import { NestingDiagram } from '@/components/forming'
 import { ARTWORKS, MACHINES, MATERIALS, REELS, SALES_ORDERS } from '@/data'
@@ -134,23 +135,23 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
           <FormSection title="Machine assignment">
             <FormGrid cols={2}>
-              <Select
+              <MachinePicker
                 label="Forming machine"
                 required
                 placeholder="Select forming line"
                 value={formingMachine}
-                onChange={(e) => setFormingMachine(e.target.value)}
+                onChange={setFormingMachine}
                 options={MACHINES.filter((m) => m.type === 'FORMING').map((m) => ({
                   value: m.machineCode,
                   label: `${m.machineCode} — ${m.machineName}${m.status === 'MAINTENANCE' ? ' (under maintenance)' : ''}`,
                 }))}
               />
-              <Select
+              <MachinePicker
                 label="Cutting machine"
                 required
                 placeholder="Select press"
                 value={cuttingMachine}
-                onChange={(e) => setCuttingMachine(e.target.value)}
+                onChange={setCuttingMachine}
                 options={MACHINES.filter((m) => m.type === 'CUTTING').map((m) => ({
                   value: m.machineCode,
                   label: `${m.machineCode} — ${m.machineName}`,

@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { StandardModal } from '@/components/modals'
 import { CustomerModal } from './master-modals'
+import { ArtworkPicker } from './master-pickers'
 import {
   DerivedField, FormGrid, FormSection, Input, Select, SelectWithCreate, Textarea,
 } from '@/components/ui'
@@ -174,13 +175,13 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
             createLabel="New client"
             renderCreateModal={(props) => <CustomerModal {...props} />}
           />
-          <Select
+          <ArtworkPicker
             label="Artwork code"
             required
             placeholder={customerId ? 'Select artwork' : 'Select a customer first'}
             disabled={!customerId}
             value={artworkCode}
-            onChange={(e) => setArtworkCode(e.target.value)}
+            onChange={setArtworkCode}
             options={artworkOptions.map((a) => ({
               value: a.artworkCode,
               label: `${a.artworkCode} — ${a.clientProductRef}`,
