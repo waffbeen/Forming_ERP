@@ -6,7 +6,9 @@ import { StandardModal } from '@/components/modals'
 import { MachinePicker } from './master-pickers'
 import { DerivedField, FormGrid, FormSection, Input, Select } from '@/components/ui'
 import { NestingDiagram } from '@/components/forming'
-import { ARTWORKS, MACHINES, MATERIALS, REELS, SALES_ORDERS, orderQty } from '@/data'
+import {
+  ARTWORKS, MACHINES, MATERIALS, REELS, SALES_ORDERS, lineArtworkCode, lineLabel, orderQty,
+} from '@/data'
 import { DECKLE_MM, PLANT } from '@/config/plant'
 import { calculateCosting, calculateNesting } from '@/lib/layout-calc'
 import { formatKg, formatMicrons, formatNumber, formatPercent } from '@/lib/utils'
@@ -25,7 +27,7 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   /* An order can carry several items and each one is its own job, so the line
      is picked as well as the order. A single-line order picks itself. */
   const line = order?.lines.find((l) => l.lineId === lineId) ?? (order?.lines.length === 1 ? order.lines[0] : undefined)
-  const artwork = ARTWORKS.find((a) => a.artworkCode === line?.artworkCode)
+  const artwork = ARTWORKS.find((a) => a.artworkCode === (line ? lineArtworkCode(line) : null))
   const material = MATERIALS.find((m) => m.materialType === artwork?.materialType)
 
   /* Default the job quantity to the line's quantity, since a partial run is
@@ -127,14 +129,14 @@ export function JobCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   !order
                     ? 'Select an order first'
                     : order.lines.length < 2
-                      ? `Item 1 · ${order.lines[0]?.artworkCode ?? ''}`
+                      ? `Item 1 · ${order.lines[0] ? lineLabel(order.lines[0]) : ''}`
                       : 'Select the item to make'
                 }
                 value={lineId}
                 onChange={(e) => setLineId(e.target.value)}
                 options={(order?.lines ?? []).map((l) => ({
                   value: l.lineId,
-                  label: `${l.lineNo}. ${l.artworkCode} — ${formatNumber(l.orderQtyPcs)} pcs`,
+                  label: `${l.lineNo}. ${lineLabel(l)} — ${formatNumber(l.orderQtyPcs)} pcs`,
                 }))}
                 helper={order && order.lines.length > 1 ? 'Each item on the order becomes its own job card' : undefined}
               />

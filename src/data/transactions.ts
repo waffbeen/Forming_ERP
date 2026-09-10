@@ -1,10 +1,11 @@
 import type {
   Coa, CuttingLog, FormingLog, InProcessCheck, JobCard, PackingRecord, SalesOrder,
-  ScrapEntry, SortingLog,
+  SalesOrderLine, ScrapEntry, SortingLog,
 } from '@/types'
 import { calculateCosting, calculateNesting, calculateReelWeight } from '@/lib/layout-calc'
 import { DECKLE_MM, PLANT } from '@/config/plant'
 import { ARTWORKS, MATERIALS } from './masters'
+import { PRODUCTS } from './masters-extended'
 
 export const SALES_ORDERS: SalesOrder[] = [
   {
@@ -12,8 +13,8 @@ export const SALES_ORDERS: SalesOrder[] = [
     customerId: 'C01', customerName: 'Vadilal Industries', clientPoRef: 'PO/VAD/26-27/1188',
     status: 'IN_PRODUCTION', source: 'DIRECT', enquiryNo: null, estimationNo: null,
     lines: [
-      { lineId: 'S01L1', lineNo: 1, artworkCode: 'AW-PVC-0312', materialType: 'PVC', thicknessMicrons: 300, orderQtyPcs: 25000, ratePerPc: 2.85, deliveryDate: '2026-09-18' },
-      { lineId: 'S01L2', lineNo: 2, artworkCode: 'AW-HIP-0098', materialType: 'HIPS', thicknessMicrons: 280, orderQtyPcs: 12000, ratePerPc: 1.62, deliveryDate: '2026-09-25' },
+      { lineId: 'S01L1', lineNo: 1, kind: 'ARTWORK', artworkCode: 'AW-PVC-0312', productCode: null, materialType: 'PVC', thicknessMicrons: 300, orderQtyPcs: 25000, ratePerPc: 2.85, deliveryDate: '2026-09-18' },
+      { lineId: 'S01L2', lineNo: 2, kind: 'ARTWORK', artworkCode: 'AW-HIP-0098', productCode: null, materialType: 'HIPS', thicknessMicrons: 280, orderQtyPcs: 12000, ratePerPc: 1.62, deliveryDate: '2026-09-25' },
     ],
   },
   {
@@ -21,7 +22,7 @@ export const SALES_ORDERS: SalesOrder[] = [
     customerId: 'C02', customerName: 'Cipla Ltd', clientPoRef: 'PO/CIP/2609/0442',
     status: 'READY_TO_RELEASE', source: 'DIRECT', enquiryNo: null, estimationNo: null,
     lines: [
-      { lineId: 'S02L1', lineNo: 1, artworkCode: 'AW-PVC-0288', materialType: 'PVC', thicknessMicrons: 450, orderQtyPcs: 60000, ratePerPc: 3.40, deliveryDate: '2026-09-22' },
+      { lineId: 'S02L1', lineNo: 1, kind: 'ARTWORK', artworkCode: 'AW-PVC-0288', productCode: null, materialType: 'PVC', thicknessMicrons: 450, orderQtyPcs: 60000, ratePerPc: 3.40, deliveryDate: '2026-09-22' },
     ],
   },
   {
@@ -29,7 +30,8 @@ export const SALES_ORDERS: SalesOrder[] = [
     customerId: 'C03', customerName: 'Britannia Industries', clientPoRef: 'PO/BRI/26/7714',
     status: 'IN_PRODUCTION', source: 'DIRECT', enquiryNo: null, estimationNo: null,
     lines: [
-      { lineId: 'S03L1', lineNo: 1, artworkCode: 'AW-HIP-0104', materialType: 'HIPS', thicknessMicrons: 350, orderQtyPcs: 40000, ratePerPc: 3.10, deliveryDate: '2026-09-15' },
+      { lineId: 'S03L1', lineNo: 1, kind: 'ARTWORK', artworkCode: 'AW-HIP-0104', productCode: null, materialType: 'HIPS', thicknessMicrons: 350, orderQtyPcs: 40000, ratePerPc: 3.10, deliveryDate: '2026-09-15' },
+      { lineId: 'S03L2', lineNo: 2, kind: 'PRODUCT', artworkCode: null, productCode: 'PRD-0010', materialType: 'HIPS', thicknessMicrons: 350, orderQtyPcs: 14000, ratePerPc: 3.18, deliveryDate: '2026-09-20' },
     ],
   },
   {
@@ -37,7 +39,7 @@ export const SALES_ORDERS: SalesOrder[] = [
     customerId: 'C04', customerName: 'Himalaya Wellness', clientPoRef: 'PO/HIM/2609/221',
     status: 'AWAITING_ARTWORK', source: 'DIRECT', enquiryNo: null, estimationNo: null,
     lines: [
-      { lineId: 'S04L1', lineNo: 1, artworkCode: 'AW-PET-0219', materialType: 'PET', thicknessMicrons: 250, orderQtyPcs: 18500, ratePerPc: 2.20, deliveryDate: '2026-09-24' },
+      { lineId: 'S04L1', lineNo: 1, kind: 'ARTWORK', artworkCode: 'AW-PET-0219', productCode: null, materialType: 'PET', thicknessMicrons: 250, orderQtyPcs: 18500, ratePerPc: 2.20, deliveryDate: '2026-09-24' },
     ],
   },
   {
@@ -45,9 +47,10 @@ export const SALES_ORDERS: SalesOrder[] = [
     customerId: 'C05', customerName: 'Zydus Lifesciences', clientPoRef: 'PO/ZYD/26-27/0913',
     status: 'READY_TO_RELEASE', source: 'DIRECT', enquiryNo: null, estimationNo: null,
     lines: [
-      { lineId: 'S05L1', lineNo: 1, artworkCode: 'AW-PVC-0295', materialType: 'PVC', thicknessMicrons: 500, orderQtyPcs: 32000, ratePerPc: 7.60, deliveryDate: '2026-09-26' },
-      { lineId: 'S05L2', lineNo: 2, artworkCode: 'AW-PET-0201', materialType: 'PET', thicknessMicrons: 600, orderQtyPcs: 6000, ratePerPc: 9.40, deliveryDate: '2026-10-02' },
-      { lineId: 'S05L3', lineNo: 3, artworkCode: 'AW-PVC-0288', materialType: 'PVC', thicknessMicrons: 450, orderQtyPcs: 15000, ratePerPc: 3.55, deliveryDate: '2026-10-02' },
+      { lineId: 'S05L1', lineNo: 1, kind: 'ARTWORK', artworkCode: 'AW-PVC-0295', productCode: null, materialType: 'PVC', thicknessMicrons: 500, orderQtyPcs: 32000, ratePerPc: 7.60, deliveryDate: '2026-09-26' },
+      { lineId: 'S05L2', lineNo: 2, kind: 'ARTWORK', artworkCode: 'AW-PET-0201', productCode: null, materialType: 'PET', thicknessMicrons: 600, orderQtyPcs: 6000, ratePerPc: 9.40, deliveryDate: '2026-10-02' },
+      { lineId: 'S05L3', lineNo: 3, kind: 'ARTWORK', artworkCode: 'AW-PVC-0288', productCode: null, materialType: 'PVC', thicknessMicrons: 450, orderQtyPcs: 15000, ratePerPc: 3.55, deliveryDate: '2026-10-02' },
+      { lineId: 'S05L4', lineNo: 4, kind: 'PRODUCT', artworkCode: null, productCode: 'PRD-0010', materialType: 'HIPS', thicknessMicrons: 350, orderQtyPcs: 8000, ratePerPc: 3.25, deliveryDate: '2026-10-06' },
     ],
   },
   {
@@ -55,7 +58,7 @@ export const SALES_ORDERS: SalesOrder[] = [
     customerId: 'C06', customerName: 'Parle Products', clientPoRef: 'PO/PAR/2609/5502',
     status: 'PLANNED', source: 'ESTIMATION', enquiryNo: 'ENQ-2609-0039', estimationNo: 'EST-2609-0026',
     lines: [
-      { lineId: 'S06L1', lineNo: 1, artworkCode: 'AW-PP-0067', materialType: 'PP', thicknessMicrons: 400, orderQtyPcs: 75000, ratePerPc: 2.65, deliveryDate: '2026-09-30' },
+      { lineId: 'S06L1', lineNo: 1, kind: 'ARTWORK', artworkCode: 'AW-PP-0067', productCode: null, materialType: 'PP', thicknessMicrons: 400, orderQtyPcs: 75000, ratePerPc: 2.65, deliveryDate: '2026-09-30' },
     ],
   },
   {
@@ -63,7 +66,7 @@ export const SALES_ORDERS: SalesOrder[] = [
     customerId: 'C07', customerName: 'Emami Ltd', clientPoRef: 'PO/EMA/26/3341',
     status: 'AWAITING_ARTWORK', source: 'ESTIMATION', enquiryNo: 'ENQ-2609-0037', estimationNo: 'EST-2609-0024',
     lines: [
-      { lineId: 'S07L1', lineNo: 1, artworkCode: 'AW-PET-0201', materialType: 'PET', thicknessMicrons: 600, orderQtyPcs: 12000, ratePerPc: 9.15, deliveryDate: '2026-09-19' },
+      { lineId: 'S07L1', lineNo: 1, kind: 'ARTWORK', artworkCode: 'AW-PET-0201', productCode: null, materialType: 'PET', thicknessMicrons: 600, orderQtyPcs: 12000, ratePerPc: 9.15, deliveryDate: '2026-09-19' },
     ],
   },
   {
@@ -71,7 +74,7 @@ export const SALES_ORDERS: SalesOrder[] = [
     customerId: 'C08', customerName: 'Mother Dairy', clientPoRef: 'PO/MOD/2609/8871',
     status: 'IN_PRODUCTION', source: 'DIRECT', enquiryNo: null, estimationNo: null,
     lines: [
-      { lineId: 'S08L1', lineNo: 1, artworkCode: 'AW-HIP-0098', materialType: 'HIPS', thicknessMicrons: 280, orderQtyPcs: 90000, ratePerPc: 1.55, deliveryDate: '2026-09-28' },
+      { lineId: 'S08L1', lineNo: 1, kind: 'ARTWORK', artworkCode: 'AW-HIP-0098', productCode: null, materialType: 'HIPS', thicknessMicrons: 280, orderQtyPcs: 90000, ratePerPc: 1.55, deliveryDate: '2026-09-28' },
     ],
   },
 ]
@@ -105,10 +108,26 @@ export function allOrderLines() {
   return SALES_ORDERS.flatMap((order) => order.lines.map((line) => ({ order, line })))
 }
 
+/**
+ * The drawing a line is ultimately made from. A customer design carries its
+ * own; one of the plant's own products carries the design it was built from,
+ * which is what the job card and the nesting need.
+ */
+export function lineArtworkCode(line: SalesOrderLine) {
+  if (line.kind === 'ARTWORK') return line.artworkCode
+  return PRODUCTS.find((p) => p.productCode === line.productCode)?.artworkCode ?? null
+}
+
+/** How a line reads on a screen: the product name, or the artwork code. */
+export function lineLabel(line: SalesOrderLine) {
+  if (line.kind === 'PRODUCT') return line.productCode ?? 'Unnamed product'
+  return line.artworkCode ?? 'No artwork'
+}
+
 /** The line a job card was raised against. */
 export function lineFor(soNumber: string, artworkCode: string) {
   return SALES_ORDERS.find((o) => o.soNumber === soNumber)?.lines.find(
-    (l) => l.artworkCode === artworkCode,
+    (l) => lineArtworkCode(l) === artworkCode,
   )
 }
 

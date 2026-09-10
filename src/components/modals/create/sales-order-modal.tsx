@@ -4,14 +4,15 @@ import * as React from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { StandardModal } from '@/components/modals'
 import { CustomerModal } from './master-modals'
-import { ArtworkPicker } from './master-pickers'
+import { ArtworkPicker, ProductPicker } from './master-pickers'
 import {
   Button, DerivedField, FormGrid, FormSection, Input, Select, SelectWithCreate, Textarea,
 } from '@/components/ui'
-import { ARTWORKS, CUSTOMERS, MATERIALS, quotableEstimations } from '@/data'
+import { ARTWORKS, CUSTOMERS, MATERIALS, PRODUCTS, quotableEstimations } from '@/data'
 import { DECKLE_MM, PLANT } from '@/config/plant'
 import { calculateCosting, calculateNesting } from '@/lib/layout-calc'
 import { formatCurrency, formatKg, formatNumber, formatPercent } from '@/lib/utils'
+import type { OrderItemKind } from '@/types'
 
 const CONVERSION_PER_PC = 0.85
 const OFFERS = quotableEstimations()
@@ -19,7 +20,10 @@ const OFFERS = quotableEstimations()
 /** One item being keyed in, before it becomes a line on the order. */
 interface DraftLine {
   key: string
+  /** The customer's own design, or a tray the plant already makes. */
+  kind: OrderItemKind
   artworkCode: string
+  productCode: string
   qty: string
   rate: string
   deliveryDate: string
@@ -28,19 +32,37 @@ interface DraftLine {
 let lineSeq = 0
 const blankLine = (): DraftLine => ({
   key: `L${++lineSeq}`,
+  kind: 'ARTWORK',
   artworkCode: '',
+  productCode: '',
   qty: '',
   rate: '',
   deliveryDate: '',
 })
 
-/** What one keyed-in item costs to make, from its own artwork and gauge. */
+const ITEM_KINDS = [
+  { value: 'ARTWORK', label: "Customer's design" },
+  { value: 'PRODUCT', label: "The plant's own product" },
+]
+
+/**
+ * What one keyed-in item costs to make.
+ *
+ * A line ordered by product code is costed off the drawing that product was
+ * built from, so one of the plant's own trays and a customer's design on the
+ * same order are priced by the same arithmetic rather than by a stored figure
+ * that may be a year old.
+ */
 function priceLine(line: DraftLine) {
-  const artwork = ARTWORKS.find((a) => a.artworkCode === line.artworkCode)
+  const product = line.kind === 'PRODUCT'
+    ? PRODUCTS.find((p) => p.productCode === line.productCode)
+    : undefined
+  const artworkCode = line.kind === 'PRODUCT' ? (product?.artworkCode ?? '') : line.artworkCode
+  const artwork = ARTWORKS.find((a) => a.artworkCode === artworkCode)
   const material = MATERIALS.find((m) => m.materialType === artwork?.materialType)
   const qty = Number(line.qty) || 0
   const rate = Number(line.rate) || 0
-  if (!artwork || !material || qty <= 0) return { artwork, qty, rate, nesting: null, costing: null }
+  if (!artwork || !material || qty <= 0) return { product, artwork, qty, rate, nesting: null, costing: null }
 
   const nesting = calculateNesting({
     openLengthMm: artwork.openLengthMm,
@@ -48,7 +70,7 @@ function priceLine(line: DraftLine) {
     deckleWidthMm: DECKLE_MM,
     bedPitchMm: PLANT.bedLengthMm,
   })
-  if (nesting.upsPerSheet === 0) return { artwork, qty, rate, nesting, costing: null }
+  if (nesting.upsPerSheet === 0) return { product, artwork, qty, rate, nesting, costing: null }
 
   const costing = calculateCosting({
     targetPiecesQty: qty,
@@ -63,7 +85,7 @@ function priceLine(line: DraftLine) {
     conversionRatePerPc: CONVERSION_PER_PC,
   })
 
-  return { artwork, qty, rate, nesting, costing }
+  return { product, artwork, qty, rate, nesting, costing }
 }
 
 /**
@@ -98,6 +120,7 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
       return [
         {
           ...first,
+          kind: 'ARTWORK' as OrderItemKind,
           artworkCode: estimation.artworkCode ?? first.artworkCode,
           qty: String(estimation.quantityPcs),
           rate: String(estimation.offeredRatePerPc),
@@ -111,6 +134,16 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
      what stops a PO description being matched to the wrong drawing. */
   const artworkOptions = React.useMemo(
     () => ARTWORKS.filter((a) => !customerId || a.customerId === customerId),
+    [customerId],
+  )
+
+  /* A product this customer has had before, or one of the generic trays the
+     plant holds against demand and will sell to anybody. */
+  const productOptions = React.useMemo(
+    () =>
+      PRODUCTS.filter(
+        (p) => p.status === 'ACTIVE' && (p.isSafetyStock || !customerId || p.customerId === customerId),
+      ),
     [customerId],
   )
 
@@ -128,7 +161,8 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
   const totalWeightKg = priced.reduce((sum, p) => sum + (p.costing?.grossWeightKg ?? 0), 0)
   const margin = totalValue > 0 ? ((totalValue - totalCost) / totalValue) * 100 : null
 
-  const completeLines = priced.filter((p) => p.line.artworkCode && p.qty > 0 && p.line.deliveryDate)
+  const named = (l: DraftLine) => (l.kind === 'PRODUCT' ? l.productCode : l.artworkCode)
+  const completeLines = priced.filter((p) => named(p.line) && p.qty > 0 && p.line.deliveryDate)
   const needsOffer = raisedFrom === 'ESTIMATION' && !estimationNo
   const belowCost = priced.some((p) => p.costing && p.rate > 0 && p.rate < p.costing.costPerPiece)
   const canSave = Boolean(customerId) && completeLines.length === lines.length && !needsOffer
@@ -137,7 +171,7 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
     if (needsOffer) return 'Select the estimation this order is being raised against'
     if (!customerId) return 'Select the customer the order is for'
     if (completeLines.length !== lines.length) {
-      return 'Every item needs an artwork, a quantity and a delivery date'
+      return 'Every item needs a design or product, a quantity and a delivery date'
     }
     if (belowCost) return 'An item is priced below its landed cost'
     return `${lines.length} item${lines.length > 1 ? 's' : ''} · ${formatNumber(totalQty)} pieces · ${formatCurrency(totalValue, 0)}`
@@ -221,7 +255,7 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
             onChange={(next) => {
               setCustomerId(next)
               // The artwork list is scoped to the customer, so clear the items.
-              setLines((current) => current.map((l) => ({ ...l, artworkCode: '' })))
+              setLines((current) => current.map((l) => ({ ...l, artworkCode: '', productCode: '' })))
             }}
             options={CUSTOMERS.map((c) => ({ value: c.customerId, label: `${c.customerName} — ${c.city}` }))}
             createLabel="New client"
@@ -234,13 +268,20 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
             value={poRef}
             onChange={(e) => setPoRef(e.target.value)}
           />
-          <DerivedField label="Items on this order" value={String(lines.length)} />
+          <DerivedField
+            label="Items on this order"
+            value={`${lines.length}${
+              lines.some((l) => l.kind === 'PRODUCT')
+                ? ` · ${lines.filter((l) => l.kind === 'PRODUCT').length} own product`
+                : ''
+            }`}
+          />
         </FormGrid>
       </FormSection>
 
       <FormSection title="Items">
         <ul className="space-y-3">
-          {priced.map(({ line, artwork, qty, rate, nesting, costing }, index) => {
+          {priced.map(({ line, product, artwork, qty, rate, nesting, costing }, index) => {
             const lineMargin = costing && rate > 0 ? ((rate - costing.costPerPiece) / rate) * 100 : null
             return (
               <li key={line.key} className="rounded-md border border-bd-default p-3">
@@ -257,19 +298,53 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                 </div>
 
                 <FormGrid cols={4}>
-                  <ArtworkPicker
-                    label="Artwork code"
-                    required
-                    placeholder={customerId ? 'Select artwork' : 'Select a customer first'}
-                    disabled={!customerId}
-                    value={line.artworkCode}
-                    onChange={(next) => setLine(line.key, { artworkCode: next })}
-                    options={artworkOptions.map((a) => ({
-                      value: a.artworkCode,
-                      label: `${a.artworkCode} — ${a.clientProductRef}`,
-                    }))}
-                    helper={artwork && !artwork.approved ? 'Drawing approval is still pending' : undefined}
+                  <Select
+                    label="Item type"
+                    value={line.kind}
+                    onChange={(e) =>
+                      setLine(line.key, {
+                        kind: e.target.value as OrderItemKind,
+                        artworkCode: '',
+                        productCode: '',
+                      })
+                    }
+                    options={ITEM_KINDS}
                   />
+                  {line.kind === 'PRODUCT' ? (
+                    <ProductPicker
+                      label="Product"
+                      required
+                      placeholder={customerId ? 'Select product' : 'Select a customer first'}
+                      disabled={!customerId}
+                      value={line.productCode}
+                      onChange={(next) => setLine(line.key, { productCode: next })}
+                      options={productOptions.map((p) => ({
+                        value: p.productCode,
+                        label: `${p.productCode} — ${p.productName}`,
+                      }))}
+                      helper={
+                        product?.isSafetyStock
+                          ? `${formatNumber(product.currentStockQty)} on the shelf`
+                          : product
+                            ? 'Made to order'
+                            : undefined
+                      }
+                    />
+                  ) : (
+                    <ArtworkPicker
+                      label="Artwork code"
+                      required
+                      placeholder={customerId ? 'Select artwork' : 'Select a customer first'}
+                      disabled={!customerId}
+                      value={line.artworkCode}
+                      onChange={(next) => setLine(line.key, { artworkCode: next })}
+                      options={artworkOptions.map((a) => ({
+                        value: a.artworkCode,
+                        label: `${a.artworkCode} — ${a.clientProductRef}`,
+                      }))}
+                      helper={artwork && !artwork.approved ? 'Drawing approval is still pending' : undefined}
+                    />
+                  )}
                   <Input
                     label="Quantity"
                     unit="pieces"
@@ -295,6 +370,9 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                         : false
                     }
                   />
+                </FormGrid>
+
+                <FormGrid cols={4}>
                   <Input
                     label="Delivery date"
                     required
@@ -302,9 +380,6 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                     value={line.deliveryDate}
                     onChange={(e) => setLine(line.key, { deliveryDate: e.target.value })}
                   />
-                </FormGrid>
-
-                <FormGrid cols={4}>
                   <DerivedField
                     label="Material"
                     value={artwork ? `${artwork.materialType} · ${artwork.thicknessMicrons} µm` : '—'}
@@ -312,10 +387,6 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                   <DerivedField
                     label="Cavity ups per sheet"
                     value={nesting ? `${nesting.upsPerSheet} (${nesting.across} × ${nesting.down})` : '—'}
-                  />
-                  <DerivedField
-                    label="Reel weight"
-                    value={costing ? formatKg(costing.grossWeightKg) : '—'}
                   />
                   <DerivedField
                     label="Landed cost / margin"
@@ -330,6 +401,8 @@ export function SalesOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
 
                 <p className="mt-2 text-xs text-fg-muted">
                   Line value {qty > 0 && rate > 0 ? formatCurrency(qty * rate, 0) : '—'}
+                  {costing ? ` · reel ${formatKg(costing.grossWeightKg)}` : ''}
+                  {product ? ` · standard cost ${formatCurrency(product.standardCostPerPc)}` : ''}
                 </p>
               </li>
             )

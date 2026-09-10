@@ -9,7 +9,8 @@ import {
 import { DetailModal, SalesOrderModal } from '@/components/modals'
 import { OrderStatusBadge } from '@/lib/shared-ui'
 import {
-  ARTWORKS, MATERIALS, SALES_ORDERS, orderDeliveryDate, orderQty, orderValue,
+  ARTWORKS, MATERIALS, PRODUCTS, SALES_ORDERS, lineArtworkCode, lineLabel,
+  orderDeliveryDate, orderQty, orderValue,
 } from '@/data'
 import { DECKLE_MM, PLANT } from '@/config/plant'
 import { calculateCosting, calculateNesting } from '@/lib/layout-calc'
@@ -29,9 +30,13 @@ const TABS = [
   { id: 'IN_PRODUCTION', label: 'In production', count: countBy('IN_PRODUCTION') },
 ]
 
-/** What one line costs to make, derived from its own artwork and gauge. */
+/**
+ * What one line costs to make. A line ordered by product code is costed off
+ * the drawing that product was built from, so an own product and a customer
+ * design on the same order are priced by the same arithmetic.
+ */
 function costLine(line: SalesOrderLine) {
-  const artwork = ARTWORKS.find((a) => a.artworkCode === line.artworkCode)
+  const artwork = ARTWORKS.find((a) => a.artworkCode === lineArtworkCode(line))
   const material = MATERIALS.find((m) => m.materialType === line.materialType)
   if (!artwork || !material) return null
 
@@ -96,14 +101,17 @@ export default function SalesOrderPage() {
       sortValue: (r) => r.lines.length,
       header: 'Items',
       render: (r) => {
-        const first = ARTWORKS.find((a) => a.artworkCode === r.lines[0]?.artworkCode)
+        const only = r.lines.length === 1 ? r.lines[0] : null
+        const ownProducts = r.lines.filter((l) => l.kind === 'PRODUCT').length
         return (
           <StackedCell
-            top={r.lines.length === 1 ? (r.lines[0]?.artworkCode ?? '—') : `${r.lines.length} items`}
+            top={only ? lineLabel(only) : `${r.lines.length} items`}
             bottom={
-              r.lines.length === 1
-                ? (first?.clientProductRef ?? '')
-                : r.lines.map((l) => l.artworkCode).join(', ')
+              only
+                ? (only.kind === 'PRODUCT'
+                    ? (PRODUCTS.find((p) => p.productCode === only.productCode)?.productName ?? 'Own product')
+                    : (ARTWORKS.find((a) => a.artworkCode === only.artworkCode)?.clientProductRef ?? ''))
+                : `${r.lines.map(lineLabel).join(', ')}${ownProducts > 0 ? ` · ${ownProducts} own` : ''}`
             }
           />
         )
@@ -171,7 +179,7 @@ export default function SalesOrderPage() {
         columns={columns}
         rowKey={(r) => r.salesOrderId}
         searchText={(r) =>
-          `${r.soNumber} ${r.customerName} ${r.clientPoRef} ${r.lines.map((l) => l.artworkCode).join(' ')}`
+          `${r.soNumber} ${r.customerName} ${r.clientPoRef} ${r.lines.map(lineLabel).join(' ')}`
         }
         searchPlaceholder="Search SO number, customer, artwork or PO reference"
         selectedKey={selected.salesOrderId}
@@ -214,16 +222,39 @@ export default function SalesOrderPage() {
         />
 
         {priced.map(({ line, artwork, nesting, costing }) => {
+          const product = PRODUCTS.find((p) => p.productCode === line.productCode)
           const margin = costing ? ((line.ratePerPc - costing.costPerPiece) / line.ratePerPc) * 100 : null
           return (
             <React.Fragment key={line.lineId}>
               <Divider />
               <p className="label-caps mb-2">
-                Item {line.lineNo} · {line.artworkCode}
-                {artwork ? ` · ${artwork.clientProductRef}` : ''}
+                Item {line.lineNo} · {lineLabel(line)}
+                {line.kind === 'PRODUCT'
+                  ? ` · ${product?.productName ?? "the plant's own"}`
+                  : artwork
+                    ? ` · ${artwork.clientProductRef}`
+                    : ''}
               </p>
               <SpecList
                 rows={[
+                  {
+                    label: 'Ordered as',
+                    value: line.kind === 'PRODUCT' ? "The plant's own product" : "The customer's design",
+                    mono: false,
+                  },
+                  ...(product
+                    ? [
+                        { label: 'Product', value: product.productName, mono: false },
+                        {
+                          label: 'On the shelf',
+                          value: product.isSafetyStock
+                            ? `${formatNumber(product.currentStockQty)} of ${formatNumber(product.safetyStockQty)} held`
+                            : 'Made to order',
+                          mono: false,
+                        },
+                        { label: 'Standard cost', value: formatCurrency(product.standardCostPerPc) },
+                      ]
+                    : []),
                   { label: 'Material', value: `${line.materialType} · ${formatMicrons(line.thicknessMicrons)}`, mono: false },
                   ...(artwork
                     ? [

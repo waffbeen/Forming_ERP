@@ -187,11 +187,25 @@ export interface Estimation {
  * own delivery date, and each becomes its own job card, so each is its own
  * line rather than a note against one.
  */
+/**
+ * What a line is selling.
+ *
+ * Most lines are a customer's own design, costed off its drawing. The rest are
+ * products the plant already makes and can hold on the shelf, ordered by
+ * product code rather than by artwork: the customer is buying a tray the plant
+ * offers, not commissioning one.
+ */
+export type OrderItemKind = 'ARTWORK' | 'PRODUCT'
+
 export interface SalesOrderLine {
   lineId: string
   /** Position on the customer's own PO, so the two can be read side by side. */
   lineNo: number
-  artworkCode: string
+  kind: OrderItemKind
+  /** The customer's design. Null on a line selling one of the plant's own. */
+  artworkCode: string | null
+  /** The plant's own product. Null on a line for a customer design. */
+  productCode: string | null
   materialType: MaterialType
   thicknessMicrons: number
   orderQtyPcs: number
