@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Layers, Save, Scissors, Trash2 } from 'lucide-react'
+import { Layers, Save, Scissors, Trash2, RotateCcw } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
   Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid,
@@ -11,12 +11,21 @@ import { ProductionRunModal, ReconciliationBar } from '@/components/forming'
 import { JOB_CARDS, CUTTING_LOGS } from '@/data'
 import { reconcileJob } from '@/lib/reconcile'
 import { formatKg, formatNumber, formatPercent } from '@/lib/utils'
+import { listDrafts, type RunDraft } from '@/lib/run-drafts'
 import type { CuttingLog } from '@/types'
 
 export default function CuttingPage() {
   const [selectedId, setSelectedId] = React.useState(CUTTING_LOGS[0].cuttingLogId)
   const [detailOpen, setDetailOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [resumeJob, setResumeJob] = React.useState<string | undefined>(undefined)
+  const [openRuns, setOpenRuns] = React.useState<RunDraft[]>([])
+
+  /* Runs left open live in the browser, so they are read after mount and again
+     whenever the screen closes and may have kept one. */
+  React.useEffect(() => {
+    if (!createOpen) setOpenRuns(listDrafts('CUTTING'))
+  }, [createOpen])
   const selected = CUTTING_LOGS.find((p) => p.cuttingLogId === selectedId) ?? CUTTING_LOGS[0]
   const job = JOB_CARDS.find((j) => j.jobCardNo === selected.jobCardNo)
 
@@ -53,9 +62,30 @@ export default function CuttingPage() {
         eyebrow="Production"
         title="Cutting Entry"
         actions={
-          <Button variant="primary" icon={Save} onClick={() => setCreateOpen(true)}>
-            Post cutting entry
-          </Button>
+          <>
+            {openRuns.length > 0 ? (
+              <Button
+                icon={RotateCcw}
+                onClick={() => {
+                  setResumeJob(openRuns[0].jobCardNo)
+                  setCreateOpen(true)
+                }}
+              >
+                Resume {openRuns[0].jobCardNo}
+                {openRuns.length > 1 ? ` +${openRuns.length - 1}` : ''}
+              </Button>
+            ) : null}
+            <Button
+              variant="primary"
+              icon={Save}
+              onClick={() => {
+                setResumeJob('')
+                setCreateOpen(true)
+              }}
+            >
+              Post cutting entry
+            </Button>
+          </>
         }
       />
 
@@ -128,7 +158,12 @@ export default function CuttingPage() {
         </DetailModal>
       </>
 
-      <ProductionRunModal isOpen={createOpen} onClose={() => setCreateOpen(false)} section="CUTTING" />
+      <ProductionRunModal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        section="CUTTING"
+        resumeJobCardNo={resumeJob}
+      />
     </>
   )
 }

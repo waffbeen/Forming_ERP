@@ -3,7 +3,7 @@
 import * as React from 'react'
 import {
   CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, FileText, Flame, Lock,
-  PlayCircle, StopCircle,
+  PlayCircle, RotateCcw, StopCircle, Trash2,
 } from 'lucide-react'
 import { HeaderSteps } from 'indas-ui'
 import { StandardModal } from '@/components/modals'
@@ -17,6 +17,8 @@ import {
 } from '@/config/plant'
 import { EMPLOYEES, JOB_CARDS, USERS, ZONE_TEMPERATURES } from '@/data'
 import { cn, formatNumber } from '@/lib/utils'
+import { discardDraft, listDrafts, loadDraft, saveDraft, savedAgo } from '@/lib/run-drafts'
+import type { RunDraft } from '@/lib/run-drafts'
 import { firstPieceApproved, lineClearanceComplete } from '@/types/run-record'
 import type { ParameterResult, RunLineClearance, RunSection } from '@/types/run-record'
 
@@ -64,10 +66,13 @@ export function ProductionRunModal({
   isOpen,
   onClose,
   section,
+  resumeJobCardNo,
 }: {
   isOpen: boolean
   onClose: () => void
   section: RunSection
+  /** Open straight into this job's part-worked run. */
+  resumeJobCardNo?: string
 }) {
   const isForming = section === 'FORMING'
   const parameters = isForming ? FORMING_DEFECTS : CUTTING_DEFECTS
@@ -126,6 +131,105 @@ export function ProductionRunModal({
   const [perBag, setPerBag] = React.useState('')
   const [perBox, setPerBox] = React.useState('')
 
+  /* ------------------------------------------------------ Runs left open */
+
+  const [openDrafts, setOpenDrafts] = React.useState<RunDraft[]>([])
+  const [resumedAt, setResumedAt] = React.useState<string | null>(null)
+
+  const emptyClearance = (): RunLineClearance => ({
+    previousJobCardNo: '',
+    previousJobName: '',
+    productCode: '',
+    operation: isForming ? 'Forming' : 'Cutting',
+    areasChecked: {},
+    operatorName: '',
+    operatorSignedAt: null,
+    supervisorName: '',
+    supervisorSignedAt: null,
+  })
+
+  /** Every field on the form in one bag, for keeping and putting back. */
+  const collect = () => ({
+    shift, dieNo, rollNo, clearance, fpaResults, fpaOperator, fpaQc, afterPowerFailure,
+    dieMountStart, dieMountEnd, heatingMins, machineStart, checkCount,
+    machineStop, jobEnd, cavities, formedSheets, makeReady, wastageSheets,
+    cutQty, wasteGrams, wasteNos, rejectionAfterSorting, perBag, perBox,
+  })
+
+  type RunValues = ReturnType<typeof collect>
+  const text = (v: unknown, fallback = '') => (typeof v === 'string' ? v : fallback)
+
+  /** Put a stored run back on the form, or clear it when given nothing. */
+  const apply = (v: Partial<RunValues>) => {
+    setShift(text(v.shift, 'A'))
+    setDieNo(text(v.dieNo))
+    setRollNo(text(v.rollNo))
+    setClearance(v.clearance ?? emptyClearance())
+    setFpaResults(v.fpaResults ?? {})
+    setFpaOperator(text(v.fpaOperator))
+    setFpaQc(text(v.fpaQc))
+    setAfterPowerFailure(Boolean(v.afterPowerFailure))
+    setDieMountStart(text(v.dieMountStart))
+    setDieMountEnd(text(v.dieMountEnd))
+    setHeatingMins(text(v.heatingMins))
+    setMachineStart(text(v.machineStart))
+    setCheckCount(typeof v.checkCount === 'number' ? v.checkCount : 0)
+    setMachineStop(text(v.machineStop))
+    setJobEnd(text(v.jobEnd))
+    setCavities(text(v.cavities))
+    setFormedSheets(text(v.formedSheets))
+    setMakeReady(text(v.makeReady))
+    setWastageSheets(text(v.wastageSheets))
+    setCutQty(text(v.cutQty))
+    setWasteGrams(text(v.wasteGrams))
+    setWasteNos(text(v.wasteNos))
+    setRejectionAfterSorting(text(v.rejectionAfterSorting))
+    setPerBag(text(v.perBag))
+    setPerBox(text(v.perBox))
+  }
+
+  /** Move to a job card, picking up its open run if it has one. */
+  const selectJob = React.useCallback(
+    (next: string) => {
+      setJobCardNo(next)
+      const draft = next ? loadDraft(section, next) : null
+      if (draft) {
+        apply(draft.values as Partial<RunValues>)
+        setStep(draft.step)
+        setResumedAt(draft.savedAt)
+      } else {
+        apply({})
+        setStep(1)
+        setResumedAt(null)
+      }
+    },
+    // apply and emptyClearance are stable for the life of one open screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [section],
+  )
+
+  /* Opening the screen shows what was left open, and goes straight into a run
+     when the operator picked one from the log. */
+  React.useEffect(() => {
+    if (!isOpen) return
+    setOpenDrafts(listDrafts(section))
+    if (resumeJobCardNo !== undefined) selectJob(resumeJobCardNo)
+  }, [isOpen, section, resumeJobCardNo, selectJob])
+
+  /* Closing is not abandoning. A run is worked across a whole shift, so what
+     has been entered against a job card is kept and reopens where it was. */
+  const handleClose = () => {
+    if (jobCardNo) saveDraft({ section, jobCardNo, step, values: collect() })
+    onClose()
+  }
+
+  /** Throw away an open run the operator says is not coming back. */
+  const forget = (job: string) => {
+    discardDraft(section, job)
+    setOpenDrafts(listDrafts(section))
+    if (job === jobCardNo) selectJob('')
+  }
+
   const clearanceDone = lineClearanceComplete(clearance, LINE_CLEARANCE_AREAS)
   const fpaDone = firstPieceApproved(
     { results: fpaResults, producedByOperator: fpaOperator, verifiedByQc: fpaQc, approvedAt: null, afterPowerFailure, remarks: '' },
@@ -173,10 +277,13 @@ export function ProductionRunModal({
 
   const canSave = started && Boolean(jobEnd) && (isForming ? formedNum > 0 : cutNum > 0)
 
+  /* A posted run is finished, so the open copy of it goes. */
   const handleSave = () => {
     setSaving(true)
     window.setTimeout(() => {
       setSaving(false)
+      if (jobCardNo) discardDraft(section, jobCardNo)
+      selectJob('')
       onClose()
     }, 500)
   }
@@ -184,8 +291,8 @@ export function ProductionRunModal({
   return (
     <StandardModal
       isOpen={isOpen}
-      onClose={onClose}
-      title={isForming ? 'Forming Run' : 'Cutting / Cutting Run'}
+      onClose={handleClose}
+      title={isForming ? 'Forming Run' : 'Cutting Run'}
       subtitle={`${documentNo} · quality checklist ${qcDocumentNo}`}
       badge={
         clearanceDone && fpaDone
@@ -197,6 +304,7 @@ export function ProductionRunModal({
       saving={saving}
       saveDisabled={!canSave}
       saveLabel="Post run record"
+      cancelLabel={jobCardNo ? 'Close and keep' : 'Cancel'}
       footerNote={blockedReason() ?? (step === 6 ? 'Ready to post' : `Step ${step} of ${STEPS.length} complete`)}
       footerActions={
         <>
@@ -224,7 +332,45 @@ export function ProductionRunModal({
             if (canReach(id)) setStep(id)
           }}
         />
+        {resumedAt ? (
+          <p className="mt-2.5 text-xs text-fg-muted">
+            Resumed from the run saved {savedAgo(resumedAt)}
+          </p>
+        ) : null}
       </div>
+
+      {/* ------------------------------- Runs the operator left open */}
+      {step === 1 && openDrafts.length > 0 ? (
+        <FormSection title="Runs left open">
+          <ul className="space-y-1.5">
+            {openDrafts.map((draft) => (
+              <li
+                key={draft.jobCardNo}
+                className="flex flex-wrap items-center gap-2 rounded-md border border-bd-default px-3 py-2"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="font-mono text-sm">{draft.jobCardNo}</span>
+                  <span className="ml-2 text-xs text-fg-muted">
+                    {STEPS[Math.min(Math.max(draft.step, 1), STEPS.length) - 1].label} · saved{' '}
+                    {savedAgo(draft.savedAt)}
+                  </span>
+                </span>
+                <Button
+                  variant="primary"
+                  icon={RotateCcw}
+                  disabled={draft.jobCardNo === jobCardNo}
+                  onClick={() => selectJob(draft.jobCardNo)}
+                >
+                  {draft.jobCardNo === jobCardNo ? 'Open' : 'Resume'}
+                </Button>
+                <Button variant="ghost" icon={Trash2} onClick={() => forget(draft.jobCardNo)}>
+                  Discard
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </FormSection>
+      ) : null}
 
       {/* ------------------------------------------------ 1. Job details */}
       {step === 1 ? (
@@ -235,7 +381,7 @@ export function ProductionRunModal({
               required
               placeholder="Select job card"
               value={jobCardNo}
-              onChange={(e) => setJobCardNo(e.target.value)}
+              onChange={(e) => selectJob(e.target.value)}
               options={JOB_CARDS.map((j) => ({ value: j.jobCardNo, label: `${j.jobCardNo} — ${j.customerName}` }))}
             />
             <Select

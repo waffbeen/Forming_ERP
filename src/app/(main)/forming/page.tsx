@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Flame, Gauge, Save, Weight } from 'lucide-react'
+import { Flame, Gauge, Save, Weight, RotateCcw } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
   Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
@@ -12,12 +12,21 @@ import { ProductionRunModal, SignatureGate, ZoneTemperatures } from '@/component
 import { FORMING_LOGS, JOB_CARDS, REELS, ZONE_TEMPERATURES } from '@/data'
 import { FORMING_TEMPERATURE_C } from '@/config/plant'
 import { formatKg, formatNumber } from '@/lib/utils'
+import { listDrafts, type RunDraft } from '@/lib/run-drafts'
 import type { FormingLog } from '@/types'
 
 export default function FormingPage() {
   const [selectedId, setSelectedId] = React.useState(FORMING_LOGS[0].formingLogId)
   const [detailOpen, setDetailOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [resumeJob, setResumeJob] = React.useState<string | undefined>(undefined)
+  const [openRuns, setOpenRuns] = React.useState<RunDraft[]>([])
+
+  /* Runs left open live in the browser, so they are read after mount and again
+     whenever the screen closes and may have kept one. */
+  React.useEffect(() => {
+    if (!createOpen) setOpenRuns(listDrafts('FORMING'))
+  }, [createOpen])
   const selected = FORMING_LOGS.find((f) => f.formingLogId === selectedId) ?? FORMING_LOGS[0]
   const job = JOB_CARDS.find((j) => j.jobCardNo === selected.jobCardNo)
   const reel = REELS.find((r) => r.reelId === selected.reelId)
@@ -65,9 +74,30 @@ export default function FormingPage() {
         eyebrow="Production"
         title="Forming Entry"
         actions={
-          <Button variant="primary" icon={Save} onClick={() => setCreateOpen(true)}>
-            Post forming entry
-          </Button>
+          <>
+            {openRuns.length > 0 ? (
+              <Button
+                icon={RotateCcw}
+                onClick={() => {
+                  setResumeJob(openRuns[0].jobCardNo)
+                  setCreateOpen(true)
+                }}
+              >
+                Resume {openRuns[0].jobCardNo}
+                {openRuns.length > 1 ? ` +${openRuns.length - 1}` : ''}
+              </Button>
+            ) : null}
+            <Button
+              variant="primary"
+              icon={Save}
+              onClick={() => {
+                setResumeJob('')
+                setCreateOpen(true)
+              }}
+            >
+              Post forming entry
+            </Button>
+          </>
         }
       />
 
@@ -180,7 +210,12 @@ export default function FormingPage() {
         </DetailModal>
       </>
 
-      <ProductionRunModal isOpen={createOpen} onClose={() => setCreateOpen(false)} section="FORMING" />
+      <ProductionRunModal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        section="FORMING"
+        resumeJobCardNo={resumeJob}
+      />
     </>
   )
 }
