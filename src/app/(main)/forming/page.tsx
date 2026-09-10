@@ -1,14 +1,14 @@
 'use client'
 
 import * as React from 'react'
-import { Flame, Gauge, Save, Weight, RotateCcw } from 'lucide-react'
+import { Save } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
   Badge, Button, Column, DataTable, Divider, Panel, PanelBody, PanelHeader,
   SpecList, StackedCell, StatsCard, StatsGrid,
 } from '@/components/ui'
 import { DetailModal } from '@/components/modals'
-import { ProductionRunModal, SignatureGate, ZoneTemperatures } from '@/components/forming'
+import { ProductionRunModal, SignatureGate, ZoneTemperatures, OpenRuns } from '@/components/forming'
 import { FORMING_LOGS, JOB_CARDS, REELS, ZONE_TEMPERATURES } from '@/data'
 import { FORMING_TEMPERATURE_C } from '@/config/plant'
 import { formatKg, formatNumber } from '@/lib/utils'
@@ -20,6 +20,7 @@ export default function FormingPage() {
   const [detailOpen, setDetailOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [resumeJob, setResumeJob] = React.useState<string | undefined>(undefined)
+  const [resumeMachine, setResumeMachine] = React.useState<string | undefined>(undefined)
   const [openRuns, setOpenRuns] = React.useState<RunDraft[]>([])
 
   /* Runs left open live in the browser, so they are read after mount and again
@@ -75,23 +76,12 @@ export default function FormingPage() {
         title="Forming Entry"
         actions={
           <>
-            {openRuns.length > 0 ? (
-              <Button
-                icon={RotateCcw}
-                onClick={() => {
-                  setResumeJob(openRuns[0].jobCardNo)
-                  setCreateOpen(true)
-                }}
-              >
-                Resume {openRuns[0].jobCardNo}
-                {openRuns.length > 1 ? ` +${openRuns.length - 1}` : ''}
-              </Button>
-            ) : null}
             <Button
               variant="primary"
               icon={Save}
               onClick={() => {
                 setResumeJob('')
+                setResumeMachine(undefined)
                 setCreateOpen(true)
               }}
             >
@@ -99,6 +89,15 @@ export default function FormingPage() {
             </Button>
           </>
         }
+      />
+
+      <OpenRuns
+        runs={openRuns}
+        onResume={(jobCardNo, machineCode) => {
+          setResumeJob(jobCardNo)
+          setResumeMachine(machineCode)
+          setCreateOpen(true)
+        }}
       />
 
       <>
@@ -201,6 +200,7 @@ export default function FormingPage() {
         onClose={() => setCreateOpen(false)}
         section="FORMING"
         resumeJobCardNo={resumeJob}
+        resumeMachineCode={resumeMachine}
       />
     </>
   )

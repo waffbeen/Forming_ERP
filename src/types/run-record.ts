@@ -143,6 +143,8 @@ export interface RunRecord {
   jobDetails: RunJobDetails
   lineClearance: RunLineClearance
   firstPiece: RunFirstPiece
+  /** Every go at the first piece, in order; the last one is the live state. */
+  firstPieceAttempts: RunFirstPieceAttempt[]
   checks: RunInProcessCheck[]
   formingOutput?: FormingRunOutput
   cuttingOutput?: CuttingRunOutput
@@ -168,4 +170,31 @@ export function firstPieceApproved(fpa: RunFirstPiece, parameters: readonly stri
     parameters.every((p) => fpa.results[p] !== 'DEFECT') &&
     Boolean(fpa.verifiedByQc)
   )
+}
+
+// ------------------------------------------------- First piece attempts
+
+/**
+ * One go at the first piece.
+ *
+ * A rejected first piece is not a dead end and it is not nothing: the machine
+ * is corrected — a zone turned up, the die reseated, the cycle lengthened — and
+ * a fresh piece is made and checked again. The format has to carry what was
+ * wrong and what was done about it, which is why a failed attempt is a record
+ * in its own right rather than something the operator clears and forgets.
+ *
+ * The job starts on the latest attempt passing, not on there never having been
+ * a failure.
+ */
+export interface RunFirstPieceAttempt {
+  attemptNo: number
+  /** Time of day the piece was judged, as the operator would write it. */
+  at: string
+  results: Record<string, ParameterResult>
+  producedByOperator: string
+  verifiedByQc: string
+  outcome: 'PASSED' | 'FAILED'
+  /** What was changed on the machine before the next piece was made. */
+  correctiveAction: string
+  afterPowerFailure: boolean
 }

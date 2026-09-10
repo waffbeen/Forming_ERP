@@ -8,9 +8,15 @@
    part-worked record is kept and reopened where it was left rather than
    thrown away and keyed in again from the paper.
 
+   A run is identified by the job card AND the machine, because the same
+   job is regularly split across two presses and each machine keeps its
+   own record: two machines running means two open runs, not one that
+   overwrites the other.
+
    This is browser-local: the draft lives on the machine it was entered
    on, which is how a shop-floor terminal is used anyway. Posting the run
-   clears it.
+   clears it, and discarding one hands it back so it can be put straight
+   back if the operator did not mean it.
    ============================================================ */
 
 import type { RunSection } from '@/types/run-record'
@@ -18,6 +24,8 @@ import type { RunSection } from '@/types/run-record'
 export interface RunDraft {
   section: RunSection
   jobCardNo: string
+  /** The press or forming line this run is on. */
+  machineCode: string
   /** The step the operator was on when they closed the screen. */
   step: number
   savedAt: string
@@ -34,7 +42,10 @@ function readAll(): RunDraft[] {
   try {
     const raw = window.localStorage.getItem(KEY)
     const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? (parsed as RunDraft[]) : []
+    if (!Array.isArray(parsed)) return []
+    /* Runs saved before a machine was recorded against them still open: they
+       read as belonging to no machine rather than being thrown away. */
+    return (parsed as RunDraft[]).map((d) => ({ ...d, machineCode: d.machineCode ?? '' }))
   } catch {
     return []
   }
@@ -49,6 +60,9 @@ function writeAll(drafts: RunDraft[]) {
   }
 }
 
+const sameRun = (d: RunDraft, section: RunSection, jobCardNo: string, machineCode: string) =>
+  d.section === section && d.jobCardNo === jobCardNo && d.machineCode === machineCode
+
 /** Open runs for one section, most recently worked first. */
 export function listDrafts(section: RunSection): RunDraft[] {
   return readAll()
@@ -56,22 +70,49 @@ export function listDrafts(section: RunSection): RunDraft[] {
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
 }
 
-export function loadDraft(section: RunSection, jobCardNo: string): RunDraft | null {
-  return readAll().find((d) => d.section === section && d.jobCardNo === jobCardNo) ?? null
+export function loadDraft(section: RunSection, jobCardNo: string, machineCode: string): RunDraft | null {
+  return readAll().find((d) => sameRun(d, section, jobCardNo, machineCode)) ?? null
 }
 
-/** One open run per job card per section, so reopening cannot fork it. */
+/** Every machine this job card is already open on, in this section. */
+export function draftsForJob(section: RunSection, jobCardNo: string): RunDraft[] {
+  return listDrafts(section).filter((d) => d.jobCardNo === jobCardNo)
+}
+
+/**
+ * One open run per job card per machine, so reopening cannot fork it and a
+ * second press cannot overwrite the first one's record.
+ */
 export function saveDraft(draft: Omit<RunDraft, 'savedAt'>): RunDraft {
   const saved: RunDraft = { ...draft, savedAt: new Date().toISOString() }
   const rest = readAll().filter(
-    (d) => !(d.section === saved.section && d.jobCardNo === saved.jobCardNo),
+    (d) => !sameRun(d, saved.section, saved.jobCardNo, saved.machineCode),
   )
   writeAll([...rest, saved])
   return saved
 }
 
-export function discardDraft(section: RunSection, jobCardNo: string) {
-  writeAll(readAll().filter((d) => !(d.section === section && d.jobCardNo === jobCardNo)))
+/**
+ * Removes an open run and hands it back, so a discard can be undone. Nothing
+ * on the floor should be one mis-tap away from a shift's work disappearing.
+ */
+export function discardDraft(
+  section: RunSection,
+  jobCardNo: string,
+  machineCode: string,
+): RunDraft | null {
+  const all = readAll()
+  const removed = all.find((d) => sameRun(d, section, jobCardNo, machineCode)) ?? null
+  writeAll(all.filter((d) => !sameRun(d, section, jobCardNo, machineCode)))
+  return removed
+}
+
+/** Puts a discarded run back exactly as it was, timestamp included. */
+export function restoreDraft(draft: RunDraft) {
+  const rest = readAll().filter(
+    (d) => !sameRun(d, draft.section, draft.jobCardNo, draft.machineCode),
+  )
+  writeAll([...rest, draft])
 }
 
 /** How long a run has been sitting open, in words an operator would use. */

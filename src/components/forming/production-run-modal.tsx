@@ -19,12 +19,14 @@ import {
   DOCUMENTS, FORMING_DEFECTS, IN_PROCESS_CHECK_COUNT, LINE_CLEARANCE_AREAS, PLANT,
   CUTTING_DEFECTS, formingWindowFor,
 } from '@/config/plant'
-import { EMPLOYEES, JOB_CARDS, USERS, ZONE_TEMPERATURES } from '@/data'
+import { EMPLOYEES, JOB_CARDS, MACHINES, USERS, ZONE_TEMPERATURES } from '@/data'
 import { formatNumber } from '@/lib/utils'
-import { discardDraft, listDrafts, loadDraft, saveDraft, savedAgo } from '@/lib/run-drafts'
+import { discardDraft, listDrafts, loadDraft, restoreDraft, saveDraft, savedAgo } from '@/lib/run-drafts'
 import type { RunDraft } from '@/lib/run-drafts'
 import { firstPieceApproved, lineClearanceComplete } from '@/types/run-record'
-import type { ParameterResult, RunInProcessCheck, RunLineClearance, RunSection } from '@/types/run-record'
+import type {
+  ParameterResult, RunFirstPieceAttempt, RunInProcessCheck, RunLineClearance, RunSection,
+} from '@/types/run-record'
 
 const STEPS = [
   { id: 1, label: 'Job details', icon: FileText },
@@ -66,12 +68,15 @@ export function ProductionRunModal({
   onClose,
   section,
   resumeJobCardNo,
+  resumeMachineCode,
 }: {
   isOpen: boolean
   onClose: () => void
   section: RunSection
   /** Open straight into this job's part-worked run. */
   resumeJobCardNo?: string
+  /** Which machine's run to reopen, when the page named one. */
+  resumeMachineCode?: string
 }) {
   const isForming = section === 'FORMING'
   const parameters = isForming ? FORMING_DEFECTS : CUTTING_DEFECTS
@@ -84,6 +89,9 @@ export function ProductionRunModal({
 
   // Job details
   const [jobCardNo, setJobCardNo] = React.useState('')
+  /* The press this run is on. The job card names one, but the same job is
+     regularly split across two, and each machine keeps its own record. */
+  const [machineCode, setMachineCode] = React.useState('')
   const [shift, setShift] = React.useState('A')
   const [dieNo, setDieNo] = React.useState('')
   const [rollNo, setRollNo] = React.useState('')
@@ -106,6 +114,9 @@ export function ProductionRunModal({
 
   // First piece approval
   const [fpaResults, setFpaResults] = React.useState<Record<string, ParameterResult>>({})
+  /** Every go at the first piece so far. The one on screen is the current go. */
+  const [fpaAttempts, setFpaAttempts] = React.useState<RunFirstPieceAttempt[]>([])
+  const [correctiveAction, setCorrectiveAction] = React.useState('')
   const [fpaOperator, setFpaOperator] = React.useState('')
   const [fpaQc, setFpaQc] = React.useState('')
   const [afterPowerFailure, setAfterPowerFailure] = React.useState(false)
@@ -141,6 +152,8 @@ export function ProductionRunModal({
   /* ------------------------------------------------------ Runs left open */
 
   const [openDrafts, setOpenDrafts] = React.useState<RunDraft[]>([])
+  /** The last run discarded on this screen, kept so it can be put back. */
+  const [justDiscarded, setJustDiscarded] = React.useState<RunDraft | null>(null)
   const [resumedAt, setResumedAt] = React.useState<string | null>(null)
 
   const emptyClearance = (): RunLineClearance => ({
@@ -157,8 +170,8 @@ export function ProductionRunModal({
 
   /** Every field on the form in one bag, for keeping and putting back. */
   const collect = () => ({
-    shift, dieNo, rollNo, clearance, fpaResults, fpaOperator, fpaQc, afterPowerFailure,
-    dieMountStart, dieMountEnd, heatingMins, machineStart, checks,
+    shift, dieNo, rollNo, clearance, fpaResults, fpaAttempts, fpaOperator, fpaQc, afterPowerFailure,
+    machineCode, dieMountStart, dieMountEnd, heatingMins, machineStart, checks,
     machineStop, jobEnd, startCounter, endCounter, issuedWeight, returnedWeight,
     cavities, formedSheets, makeReady, wastageSheets,
     cutQty, wasteGrams, wasteNos, rejectionAfterSorting, perBag, perBox,
@@ -174,6 +187,8 @@ export function ProductionRunModal({
     setRollNo(text(v.rollNo))
     setClearance(v.clearance ?? emptyClearance())
     setFpaResults(v.fpaResults ?? {})
+    setFpaAttempts(Array.isArray(v.fpaAttempts) ? v.fpaAttempts : [])
+    setCorrectiveAction('')
     setFpaOperator(text(v.fpaOperator))
     setFpaQc(text(v.fpaQc))
     setAfterPowerFailure(Boolean(v.afterPowerFailure))
@@ -201,11 +216,22 @@ export function ProductionRunModal({
     setPerBox(text(v.perBox))
   }
 
-  /** Move to a job card, picking up its open run if it has one. */
-  const selectJob = React.useCallback(
-    (next: string) => {
-      setJobCardNo(next)
-      const draft = next ? loadDraft(section, next) : null
+  /**
+   * Move to one run — a job card on a machine — picking it up where it was
+   * left. A job with no machine chosen yet opens on the one its card names.
+   */
+  const selectRun = React.useCallback(
+    (nextJob: string, nextMachine?: string) => {
+      const card = JOB_CARDS.find((j) => j.jobCardNo === nextJob)
+      const machine =
+        nextMachine ??
+        (isForming ? card?.formingMachineCode : card?.cuttingMachineCode) ??
+        ''
+
+      setJobCardNo(nextJob)
+      setMachineCode(nextJob ? machine : '')
+
+      const draft = nextJob ? loadDraft(section, nextJob, machine) : null
       if (draft) {
         apply(draft.values as Partial<RunValues>)
         setStep(draft.step)
@@ -215,32 +241,49 @@ export function ProductionRunModal({
         setStep(1)
         setResumedAt(null)
       }
+      // The machine is part of the run's identity, so it survives apply().
+      setMachineCode(nextJob ? machine : '')
     },
     // apply and emptyClearance are stable for the life of one open screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [section],
+    [section, isForming],
   )
+
+  /** Kept for the call sites that only know the job card. */
+  const selectJob = React.useCallback((next: string) => selectRun(next), [selectRun])
 
   /* Opening the screen shows what was left open, and goes straight into a run
      when the operator picked one from the log. */
   React.useEffect(() => {
     if (!isOpen) return
     setOpenDrafts(listDrafts(section))
-    if (resumeJobCardNo !== undefined) selectJob(resumeJobCardNo)
-  }, [isOpen, section, resumeJobCardNo, selectJob])
+    if (resumeJobCardNo !== undefined) selectRun(resumeJobCardNo, resumeMachineCode)
+  }, [isOpen, section, resumeJobCardNo, resumeMachineCode, selectRun])
 
   /* Closing is not abandoning. A run is worked across a whole shift, so what
      has been entered against a job card is kept and reopens where it was. */
   const handleClose = () => {
-    if (jobCardNo) saveDraft({ section, jobCardNo, step, values: collect() })
+    if (jobCardNo) saveDraft({ section, jobCardNo, machineCode, step, values: collect() })
     onClose()
   }
 
-  /** Throw away an open run the operator says is not coming back. */
-  const forget = (job: string) => {
-    discardDraft(section, job)
+  /**
+   * Throw away an open run — but hold on to it, because a shift's work should
+   * never be one mis-tap from gone. It goes back with a single press until the
+   * operator moves on.
+   */
+  const forget = (job: string, machine: string) => {
+    const removed = discardDraft(section, job, machine)
     setOpenDrafts(listDrafts(section))
-    if (job === jobCardNo) selectJob('')
+    setJustDiscarded(removed)
+    if (job === jobCardNo && machine === machineCode) selectJob('')
+  }
+
+  const undoDiscard = () => {
+    if (!justDiscarded) return
+    restoreDraft(justDiscarded)
+    setOpenDrafts(listDrafts(section))
+    setJustDiscarded(null)
   }
 
   const clearanceDone = lineClearanceComplete(clearance, LINE_CLEARANCE_AREAS)
@@ -266,7 +309,13 @@ export function ProductionRunModal({
   const blockedReason = () => {
     if (step === 1) return jobCardNo ? null : 'Select the job card to continue'
     if (step === 2) return clearanceDone ? null : 'All six areas must be checked and both signatures taken'
-    if (step === 3) return fpaDone ? null : 'Every parameter must be checked, none a defect, and QC named'
+    if (step === 3) {
+      if (fpaDone) return null
+      if (fpaDefects.length > 0) {
+        return 'Record this rejected piece, correct the machine, and make a fresh one'
+      }
+      return 'Every parameter must be checked, none a defect, and QC named'
+    }
     if (step === 4) return started ? null : 'Enter the machine start time to run the job'
     if (step === 5 && draftCheck && !draftComplete)
       return 'Mark every parameter on this check and name the QC executive who signed it'
@@ -283,11 +332,70 @@ export function ProductionRunModal({
 
   /* ------------------------------------------------- In-process checks */
 
+  const lastCheck = checks.length > 0 ? checks[checks.length - 1] : null
+
+  /* The QC executive who signed the last check is almost always the one
+     signing this one: they are on the same shift, on the same line. */
   const startCheck = () =>
-    setDraftCheck({ checkNo: checks.length + 1, time: now(), inspector: '', results: {} })
+    setDraftCheck({
+      checkNo: checks.length + 1,
+      time: now(),
+      inspector: lastCheck?.inspector ?? fpaQc,
+      results: {},
+    })
 
   const setCheckParameter = (parameter: string, value: ParameterResult) =>
     setDraftCheck((c) => (c ? { ...c, results: { ...c.results, [parameter]: value } } : c))
+
+  /** Marks the whole format at once, which is what a clean check is. */
+  const setAllCheckParameters = (value: ParameterResult) =>
+    setDraftCheck((c) =>
+      c
+        ? {
+            ...c,
+            results: Object.fromEntries(parameters.map((parameter) => [parameter, value])),
+          }
+        : c,
+    )
+
+  /** Carries the previous check forward, defects and all, to be edited. */
+  const copyPreviousCheck = () =>
+    setDraftCheck((c) => (c && lastCheck ? { ...c, results: { ...lastCheck.results } } : c))
+
+  /** The same two shortcuts on the first piece, which reads the same format. */
+  const setAllFpaParameters = (value: ParameterResult) =>
+    setFpaResults(Object.fromEntries(parameters.map((parameter) => [parameter, value])))
+
+  const fpaDefects = parameters.filter((p) => fpaResults[p] === 'DEFECT')
+  const fpaAllChecked = parameters.every((p) => fpaResults[p] && fpaResults[p] !== 'NOT_CHECKED')
+
+  /**
+   * A rejected first piece is recorded, the machine is corrected, and the next
+   * piece is judged fresh. The operator and QC carry over — the same two people
+   * are standing at the machine — but the marks do not, because this is a new
+   * piece and not an edit of the one that failed.
+   */
+  const recordFailedAttempt = () => {
+    if (fpaDefects.length === 0 || !fpaAllChecked || !fpaQc || !correctiveAction.trim()) return
+    setFpaAttempts((a) => [
+      ...a,
+      {
+        attemptNo: a.length + 1,
+        at: now(),
+        results: { ...fpaResults },
+        producedByOperator: fpaOperator,
+        verifiedByQc: fpaQc,
+        outcome: 'FAILED',
+        correctiveAction: correctiveAction.trim(),
+        afterPowerFailure,
+      },
+    ])
+    setFpaResults({})
+    setCorrectiveAction('')
+  }
+
+  const canRecordFailure =
+    fpaDefects.length > 0 && fpaAllChecked && Boolean(fpaQc) && correctiveAction.trim().length > 0
 
   /** A check is only a record once every parameter was looked at and QC signed. */
   const draftComplete =
@@ -357,7 +465,7 @@ export function ProductionRunModal({
     setSaving(true)
     window.setTimeout(() => {
       setSaving(false)
-      if (jobCardNo) discardDraft(section, jobCardNo)
+      if (jobCardNo) discardDraft(section, jobCardNo, machineCode)
       selectJob('')
       onClose()
     }, 500)
@@ -415,35 +523,66 @@ export function ProductionRunModal({
       </div>
 
       {/* ------------------------------- Runs the operator left open */}
-      {step === 1 && openDrafts.length > 0 ? (
-        <FormSection title="Runs left open">
+      {step === 1 && (openDrafts.length > 0 || justDiscarded) ? (
+        <FormSection
+          title="Runs left open"
+          description="One per machine: two presses on the same job card keep two records, and neither overwrites the other."
+        >
           <ul className="space-y-1.5">
-            {openDrafts.map((draft) => (
-              <li
-                key={draft.jobCardNo}
-                className="flex flex-wrap items-center gap-2 rounded-md border border-bd-default px-3 py-2"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="font-mono text-sm">{draft.jobCardNo}</span>
-                  <span className="ml-2 text-xs text-fg-muted">
-                    {STEPS[Math.min(Math.max(draft.step, 1), STEPS.length) - 1].label} · saved{' '}
-                    {savedAgo(draft.savedAt)}
-                  </span>
-                </span>
-                <Button
-                  variant="primary"
-                  icon={RotateCcw}
-                  disabled={draft.jobCardNo === jobCardNo}
-                  onClick={() => selectJob(draft.jobCardNo)}
+            {openDrafts.map((draft) => {
+              const isThisRun = draft.jobCardNo === jobCardNo && draft.machineCode === machineCode
+              return (
+                <li
+                  key={`${draft.jobCardNo}|${draft.machineCode}`}
+                  className="flex flex-wrap items-center gap-2 rounded-md border border-bd-default px-3 py-2"
                 >
-                  {draft.jobCardNo === jobCardNo ? 'Open' : 'Resume'}
-                </Button>
-                <Button variant="ghost" icon={Trash2} onClick={() => forget(draft.jobCardNo)}>
-                  Discard
-                </Button>
-              </li>
-            ))}
+                  <span className="min-w-0 flex-1">
+                    <span className="font-mono text-sm">{draft.jobCardNo}</span>
+                    {draft.machineCode ? (
+                      <span className="ml-2 font-mono text-xs text-primary">{draft.machineCode}</span>
+                    ) : (
+                      <span className="ml-2 text-xs text-fg-subtle">no machine recorded</span>
+                    )}
+                    <span className="ml-2 text-xs text-fg-muted">
+                      {STEPS[Math.min(Math.max(draft.step, 1), STEPS.length) - 1].label} · saved{' '}
+                      {savedAgo(draft.savedAt)}
+                    </span>
+                  </span>
+                  <Button
+                    variant="primary"
+                    icon={RotateCcw}
+                    disabled={isThisRun}
+                    onClick={() => selectRun(draft.jobCardNo, draft.machineCode)}
+                  >
+                    {isThisRun ? 'Open' : 'Resume'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    icon={Trash2}
+                    onClick={() => forget(draft.jobCardNo, draft.machineCode)}
+                  >
+                    Discard
+                  </Button>
+                </li>
+              )
+            })}
           </ul>
+
+          {justDiscarded ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-warning/50 bg-warning-subtle px-3 py-2">
+              <span className="min-w-0 flex-1 text-xs text-fg-muted">
+                Discarded{' '}
+                <span className="font-mono">
+                  {justDiscarded.jobCardNo}
+                  {justDiscarded.machineCode ? ` · ${justDiscarded.machineCode}` : ''}
+                </span>
+                . Nothing is posted, so the entry is gone once you leave this screen.
+              </span>
+              <Button icon={RotateCcw} onClick={undoDiscard}>
+                Put it back
+              </Button>
+            </div>
+          ) : null}
         </FormSection>
       ) : null}
 
@@ -476,14 +615,44 @@ export function ProductionRunModal({
               <>
                 <Input label="Die no" mono value={dieNo} onChange={(e) => setDieNo(e.target.value)} placeholder="FD-0312" />
                 <Input label="Vendor roll no" mono value={rollNo} onChange={(e) => setRollNo(e.target.value)} placeholder="RL-9241" />
-                <DerivedField label="Machine" value={job?.formingMachineCode ?? '—'} />
+                <Select
+                  label="Forming line"
+                  required
+                  placeholder="Select the machine"
+                  value={machineCode}
+                  onChange={(e) => selectRun(jobCardNo, e.target.value)}
+                  options={MACHINES.filter((m) => m.type === 'FORMING').map((m) => ({
+                    value: m.machineCode,
+                    label: `${m.machineCode} — ${m.machineName}`,
+                  }))}
+                  helper={
+                    job && machineCode !== job.formingMachineCode
+                      ? `Job card names ${job.formingMachineCode}; this run keeps its own record`
+                      : 'Each machine keeps its own record of this job'
+                  }
+                />
                 <DerivedField label="Material type" value={job?.materialType ?? '—'} />
                 <DerivedField label="Micron" value={job ? `${job.thicknessMicrons} µm` : '—'} />
                 <DerivedField label="Roll size" value="620 mm" />
               </>
             ) : (
               <>
-                <DerivedField label="Machine" value={job?.cuttingMachineCode ?? '—'} />
+                <Select
+                  label="Cutting press"
+                  required
+                  placeholder="Select the machine"
+                  value={machineCode}
+                  onChange={(e) => selectRun(jobCardNo, e.target.value)}
+                  options={MACHINES.filter((m) => m.type === 'CUTTING').map((m) => ({
+                    value: m.machineCode,
+                    label: `${m.machineCode} — ${m.machineName}`,
+                  }))}
+                  helper={
+                    job && machineCode !== job.cuttingMachineCode
+                      ? `Job card names ${job.cuttingMachineCode}; this run keeps its own record`
+                      : 'Each machine keeps its own record of this job'
+                  }
+                />
                 <Input label="Remark 1" placeholder="Optional" />
                 <Input label="Remark 2" placeholder="Optional" />
               </>
@@ -567,7 +736,45 @@ export function ProductionRunModal({
       {/* ------------------------------------------ 3. First piece approval */}
       {step === 3 ? (
         <>
-          <FormSection title={`First piece approval · ${qcDocumentNo}`}>
+          {fpaAttempts.length > 0 ? (
+            <FormSection
+              title={`First piece attempts · ${fpaAttempts.length} rejected`}
+              description="Each rejected piece stays on the record, with what was done about it."
+            >
+              <ul className="space-y-1.5">
+                {fpaAttempts.map((attempt) => {
+                  const defects = parameters.filter((p) => attempt.results[p] === 'DEFECT')
+                  return (
+                    <li
+                      key={attempt.attemptNo}
+                      className="rounded-md border border-bd-default px-3 py-2"
+                    >
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <span className="text-sm font-medium">
+                          Attempt {attempt.attemptNo}
+                          <span className="ml-2 font-mono text-xs text-fg-muted">{attempt.at}</span>
+                        </span>
+                        <Badge tone="error">Rejected on {defects.length}</Badge>
+                      </div>
+                      <p className="mt-0.5 text-xs text-error">{defects.join(', ')}</p>
+                      <p className="mt-0.5 text-xs text-fg-muted">
+                        Corrected: {attempt.correctiveAction} · verified by{' '}
+                        {nameOf(attempt.verifiedByQc) || attempt.verifiedByQc}
+                      </p>
+                    </li>
+                  )
+                })}
+              </ul>
+            </FormSection>
+          ) : null}
+
+          <FormSection
+            title={
+              fpaAttempts.length > 0
+                ? `First piece approval · attempt ${fpaAttempts.length + 1} · ${qcDocumentNo}`
+                : `First piece approval · ${qcDocumentNo}`
+            }
+          >
             <FormGrid cols={3}>
               <EmployeePicker
                 label="Produced by operator"
@@ -597,9 +804,51 @@ export function ProductionRunModal({
           </FormSection>
 
           <FormSection title="Quality parameters">
-            <ParameterResults parameters={parameters} results={fpaResults} onChange={setParameter} />
-            {parameters.some((p) => fpaResults[p] === 'DEFECT') ? (
-              <p className="mt-1 text-xs text-error">A defect blocks the job from starting.</p>
+            <ParameterResults
+              parameters={parameters}
+              results={fpaResults}
+              onChange={setParameter}
+              onSetAll={setAllFpaParameters}
+            />
+            {fpaDefects.length > 0 ? (
+              <div className="mt-3 rounded-md border border-error/50 bg-error-subtle p-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+                  <div className="min-w-0 flex-1">
+                    <h5 className="text-sm font-semibold text-error">
+                      First piece rejected on {fpaDefects.join(', ')}
+                    </h5>
+                    <p className="mt-0.5 max-w-[74ch] text-xs text-fg-muted">
+                      The job cannot start on this piece. Correct the machine, record what you
+                      changed, and make a fresh first piece — the rejected one stays on the record.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <Input
+                    label="Corrective action"
+                    required
+                    value={correctiveAction}
+                    onChange={(e) => setCorrectiveAction(e.target.value)}
+                    placeholder={
+                      isForming
+                        ? 'Zone 12 raised by 4 °C, cycle held 2 s longer'
+                        : 'Die reseated and stroke depth reset'
+                    }
+                    helper="What was changed on the machine before the next piece"
+                  />
+                </div>
+                <div className="mt-2.5">
+                  <Button
+                    variant="primary"
+                    icon={RotateCcw}
+                    disabled={!canRecordFailure}
+                    onClick={recordFailedAttempt}
+                  >
+                    Record attempt {fpaAttempts.length + 1} and make a fresh piece
+                  </Button>
+                </div>
+              </div>
             ) : null}
           </FormSection>
         </>
@@ -672,6 +921,9 @@ export function ProductionRunModal({
                     parameters={parameters}
                     results={draftCheck.results}
                     onChange={setCheckParameter}
+                    onSetAll={setAllCheckParameters}
+                    onCopyPrevious={lastCheck ? copyPreviousCheck : undefined}
+                    copyLabel={lastCheck ? `Same as check ${lastCheck.checkNo}` : undefined}
                   />
                 </div>
                 <div className="mt-3 flex gap-2">

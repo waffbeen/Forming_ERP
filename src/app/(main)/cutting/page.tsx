@@ -1,13 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import { Layers, Save, Scissors, Trash2, RotateCcw } from 'lucide-react'
+import { Save } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import {
   Badge, Button, Column, DataTable, Divider, SpecList, StackedCell, StatsCard, StatsGrid,
 } from '@/components/ui'
 import { DetailModal } from '@/components/modals'
-import { ProductionRunModal, ReconciliationBar } from '@/components/forming'
+import { ProductionRunModal, ReconciliationBar, OpenRuns } from '@/components/forming'
 import { JOB_CARDS, CUTTING_LOGS } from '@/data'
 import { reconcileJob } from '@/lib/reconcile'
 import { formatKg, formatNumber, formatPercent } from '@/lib/utils'
@@ -19,6 +19,7 @@ export default function CuttingPage() {
   const [detailOpen, setDetailOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [resumeJob, setResumeJob] = React.useState<string | undefined>(undefined)
+  const [resumeMachine, setResumeMachine] = React.useState<string | undefined>(undefined)
   const [openRuns, setOpenRuns] = React.useState<RunDraft[]>([])
 
   /* Runs left open live in the browser, so they are read after mount and again
@@ -63,23 +64,12 @@ export default function CuttingPage() {
         title="Cutting Entry"
         actions={
           <>
-            {openRuns.length > 0 ? (
-              <Button
-                icon={RotateCcw}
-                onClick={() => {
-                  setResumeJob(openRuns[0].jobCardNo)
-                  setCreateOpen(true)
-                }}
-              >
-                Resume {openRuns[0].jobCardNo}
-                {openRuns.length > 1 ? ` +${openRuns.length - 1}` : ''}
-              </Button>
-            ) : null}
             <Button
               variant="primary"
               icon={Save}
               onClick={() => {
                 setResumeJob('')
+                setResumeMachine(undefined)
                 setCreateOpen(true)
               }}
             >
@@ -87,6 +77,15 @@ export default function CuttingPage() {
             </Button>
           </>
         }
+      />
+
+      <OpenRuns
+        runs={openRuns}
+        onResume={(jobCardNo, machineCode) => {
+          setResumeJob(jobCardNo)
+          setResumeMachine(machineCode)
+          setCreateOpen(true)
+        }}
       />
 
       <>
@@ -144,6 +143,7 @@ export default function CuttingPage() {
         onClose={() => setCreateOpen(false)}
         section="CUTTING"
         resumeJobCardNo={resumeJob}
+        resumeMachineCode={resumeMachine}
       />
     </>
   )
