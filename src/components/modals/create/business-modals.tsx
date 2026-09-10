@@ -203,8 +203,33 @@ export function ItemModal({ isOpen, onClose, onCreated, initialName }: MasterMod
   const [reorder, setReorder] = React.useState('')
   const [rate, setRate] = React.useState('')
   const [hsn, setHsn] = React.useState('')
+  const [materialType, setMaterialType] = React.useState('')
+  const [microns, setMicrons] = React.useState('')
+  const [deckle, setDeckle] = React.useState('')
+  const [colour, setColour] = React.useState('')
+  const [moq, setMoq] = React.useState('')
+  const [foodGrade, setFoodGrade] = React.useState(false)
 
   const isRawMaterial = itemType === 'RAW_MATERIAL'
+
+  /* The grade is what the gauge and the colour are judged against: a polymer is
+     only extruded between certain limits and in certain colours. */
+  const grade = MATERIALS.find((m) => m.materialType === materialType)
+  const micronsNum = Number(microns) || 0
+  const deckleNum = Number(deckle) || 0
+
+  /* The plant floor stands on top of whatever the grade allows: nothing under
+     180 microns can be formed here, however well it extrudes. */
+  const gaugeFloor = Math.max(grade?.minMicrons ?? PLANT.minMicrons, PLANT.minMicrons)
+  const gaugeCeiling = Math.min(grade?.maxMicrons ?? PLANT.maxMicrons, PLANT.maxMicrons)
+  const gaugeOutOfRange =
+    isRawMaterial && micronsNum > 0 && (micronsNum < gaugeFloor || micronsNum > gaugeCeiling)
+  const deckleTooNarrow = isRawMaterial && deckleNum > 0 && deckleNum < PLANT.bedWidthMm
+
+  /* A grade brings its own rate, which is the price to open the item at. */
+  React.useEffect(() => {
+    if (grade) setRate(String(grade.ratePerKg))
+  }, [grade])
 
   /* Reels are bought by weight and nothing else, so the UOM is not a choice. */
   React.useEffect(() => {
@@ -222,7 +247,13 @@ export function ItemModal({ isOpen, onClose, onCreated, initialName }: MasterMod
       size="lg"
       onSave={save}
       saving={saving}
-      saveDisabled={!code || !name || !itemType || !uom}
+      saveDisabled={
+        !code ||
+        !name ||
+        !itemType ||
+        !uom ||
+        (isRawMaterial && (!materialType || micronsNum <= 0 || gaugeOutOfRange))
+      }
       saveLabel="Create item"
       footerNote={
         rate && reorder
@@ -289,6 +320,90 @@ export function ItemModal({ isOpen, onClose, onCreated, initialName }: MasterMod
           )}
         </FormGrid>
       </FormSection>
+
+      {isRawMaterial ? (
+        <FormSection
+          title="Reel specification"
+          description="What every roll of this item is bought at. The receipt and the purchase order both open from here."
+        >
+          <FormGrid cols={3}>
+            <Select
+              label="Polymer"
+              required
+              placeholder="Select the grade"
+              value={materialType}
+              onChange={(e) => {
+                setMaterialType(e.target.value)
+                setColour('')
+              }}
+              options={MATERIALS.map((m) => ({
+                value: m.materialType,
+                label: `${m.materialType} — ${m.grade}`,
+              }))}
+              helper={grade ? `${grade.densityGCm3} g/cm³` : undefined}
+            />
+            <Input
+              label="Thickness"
+              unit="µm"
+              required
+              type="number"
+              value={microns}
+              onChange={(e) => setMicrons(e.target.value)}
+              error={
+                gaugeOutOfRange
+                  ? `${materialType} runs ${gaugeFloor} to ${gaugeCeiling} µm here`
+                  : false
+              }
+              helper={
+                !gaugeOutOfRange && grade
+                  ? `${gaugeFloor} to ${gaugeCeiling} µm`
+                  : `Never under the ${PLANT.minMicrons} µm plant floor`
+              }
+            />
+            <Input
+              label="Deckle width"
+              unit="mm"
+              type="number"
+              value={deckle}
+              onChange={(e) => setDeckle(e.target.value)}
+              error={
+                deckleTooNarrow ? `Narrower than the ${PLANT.bedWidthMm} mm bed` : false
+              }
+              helper={!deckleTooNarrow ? `Bed is ${PLANT.bedWidthMm} mm wide` : undefined}
+            />
+            <Select
+              label="Colour"
+              placeholder={grade ? 'Select a colour' : 'Pick the polymer first'}
+              value={colour}
+              disabled={!grade}
+              onChange={(e) => setColour(e.target.value)}
+              options={(grade?.colours ?? []).map((c) => ({ value: c, label: c }))}
+              helper={grade ? `${grade.materialType} is extruded in these` : undefined}
+            />
+            <Input
+              label="Minimum order"
+              unit="KG"
+              type="number"
+              value={moq}
+              onChange={(e) => setMoq(e.target.value)}
+              helper="A purchase order line opens at this"
+            />
+            <DerivedField
+              label="Ordered and stocked in"
+              value="Kilograms"
+              emphasis
+            />
+          </FormGrid>
+          <div className="mt-3">
+            <Checkbox
+              label="Food contact grade"
+              hint="Incoming QC asks for a migration certificate against every receipt of it"
+              checked={foodGrade}
+              onChange={(e) => setFoodGrade(e.target.checked)}
+            />
+          </div>
+        </FormSection>
+      ) : null}
 
       <FormSection title="Sourcing and stock">
         <FormGrid cols={2}>

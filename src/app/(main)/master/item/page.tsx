@@ -39,7 +39,36 @@ const columns: Column<Item>[] = [
     header: 'Category',
     render: (r) => CATEGORIES.find((c) => c.categoryId === r.categoryId)?.categoryName ?? '—',
   },
+  {
+    key: 'spec',
+    header: 'Specification',
+    sortValue: (r) => `${r.materialType ?? ''} ${r.thicknessMicrons ?? 0}`,
+    render: (r) =>
+      r.materialType ? (
+        <span className="font-mono text-xs">
+          {r.materialType}
+          {r.thicknessMicrons ? ` · ${r.thicknessMicrons} µm` : ''}
+          {r.deckleWidthMm ? ` · ${r.deckleWidthMm} mm` : ''}
+          {r.colour ? <span className="text-fg-muted"> · {r.colour}</span> : null}
+          {r.isFoodGrade ? <span className="text-success"> · food grade</span> : null}
+        </span>
+      ) : (
+        <span className="text-fg-subtle">—</span>
+      ),
+  },
   { key: 'uom', header: 'UOM', render: (r) => <span className="font-mono">{r.uom}</span> },
+  {
+    key: 'moq',
+    header: 'Min order',
+    align: 'right',
+    sortValue: (r) => r.minOrderQtyKg ?? 0,
+    render: (r) =>
+      r.minOrderQtyKg ? (
+        <span className="font-mono">{formatNumber(r.minOrderQtyKg)}</span>
+      ) : (
+        <span className="text-fg-subtle">—</span>
+      ),
+  },
   {
     key: 'stock',
     header: 'In stock',

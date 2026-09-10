@@ -66,11 +66,27 @@ export interface Item extends MasterBase {
   hsnCode: string
   /**
    * Reel specification, on the raw material items that are reels. A roll's
-   * polymer and deckle belong to what was ordered, not to the roll, so the
-   * receipt does not have to be told them again.
+   * polymer, gauge and deckle belong to what was ordered, not to the roll, so
+   * the receipt does not have to be told them again and a purchase order line
+   * can open already knowing them.
+   *
+   * The polymer points at the material master, which is where the density, the
+   * gauge range it can be extruded at and the colours it comes in live. The
+   * item restates none of that.
    */
   materialType?: MaterialType
+  /** The gauge ordered, inside the range its polymer allows. */
+  thicknessMicrons?: number
   deckleWidthMm?: number
+  /** One of the colours its polymer is extruded in. */
+  colour?: string
+  /**
+   * What the supplier will not go below on one order, in kilograms. A purchase
+   * order line opens at this rather than at nothing.
+   */
+  minOrderQtyKg?: number
+  /** Food-contact stock, which incoming QC asks for a migration certificate on. */
+  isFoodGrade?: boolean
 }
 
 // ------------------------------------------------------------------- Product
