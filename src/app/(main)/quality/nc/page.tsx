@@ -136,17 +136,28 @@ export default function NonConformancePage() {
     },
     {
       key: 'act',
-      header: '',
+      header: 'Closed on',
       render: (r) =>
         r.status === 'CLOSED' ? (
-          <span className="text-xs text-fg-subtle">Closed {r.closedOn ? formatDate(r.closedOn) : ''}</span>
+          <span className="text-xs text-fg-subtle">{r.closedOn ? formatDate(r.closedOn) : '—'}</span>
         ) : (
-          <Button variant="ghost" icon={CheckCircle2} onClick={() => setCloseTarget(r)}>
-            Close out
-          </Button>
+          <span className="text-xs text-fg-subtle">Open</span>
         ),
     },
   ]
+
+  /* Memoised: a fresh object on every render would rebuild the grid's columns. */
+  const actions = React.useMemo(
+    () => ({
+      onEdit: (row: NonConformance) => setCloseTarget(row),
+      // A closed non-conformance is a sealed record; it does not reopen here.
+      showEdit: (row: NonConformance) => row.status !== 'CLOSED',
+      mode: 'buttons' as const,
+      primaryActions: ['edit' as const],
+      labels: { edit: 'Close out' },
+    }),
+    [],
+  )
 
   return (
     <>
@@ -166,6 +177,7 @@ export default function NonConformancePage() {
         columns={columns}
         rowKey={(r) => r.ncId}
         mainColumns="nc,source,param,status,act"
+        actions={actions}
         toolbar={<Tabs tabs={tabs} activeId={tab} onChange={(id) => setTab(id as NcStatus | 'ALL')} />}
       />
 

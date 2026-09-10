@@ -1,7 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { DataGrid } from 'indas-ui/datagrid'
+import { DataGrid, createActionsColumn } from 'indas-ui/datagrid'
+import type { ActionsColumnConfig } from 'indas-ui/datagrid'
 import { cn } from '@/lib/utils'
 
 export interface Column<T> {
@@ -39,6 +40,15 @@ export interface DataTableProps<T> {
   /** Accepted for call-site compatibility; the grid searches its own columns. */
   searchText?: (row: T) => string
   searchPlaceholder?: string
+  /**
+   * Per-row buttons, rendered by the grid's own actions column as the first
+   * column — the same place every Indas Estimo grid puts them. Pass a memoised
+   * object: a fresh one on each render rebuilds the grid's columns.
+   *
+   * Never build an action column by hand. One with a blank header renders as an
+   * empty filterable column rather than a button.
+   */
+  actions?: ActionsColumnConfig<T>
 }
 
 /* Take the column type straight from the grid, so this file never pins its
@@ -76,6 +86,7 @@ export function DataTable<T>({
   loading,
   pageSize = 25,
   summary,
+  actions,
 }: DataTableProps<T>) {
 /* The grid exposes a row click but not a double click, so the second click on
      the same row within the usual double-click window is treated as one. */
@@ -98,23 +109,25 @@ export function DataTable<T>({
     [onOpen, onSelect, rowKey],
   )
 
-  const gridColumns = React.useMemo<GridColumn<T>[]>(
-    () =>
-      columns.map((col) => ({
+  const gridColumns = React.useMemo<GridColumn<T>[]>(() => {
+    const mapped: GridColumn<T>[] = columns.map((col) => ({
         id: col.key,
         header: col.header,
         size: parseWidth(col.width),
         enableSorting: Boolean(col.sortValue),
         // Sorting and the grid's own search both read this accessor.
         accessorFn: (row: T) => (col.sortValue ? col.sortValue(row) : ''),
-        cell: ({ row }) => (
-          <div className={cn('text-sm', col.align === 'right' ? 'text-right' : 'text-left')}>
-            {col.render(row.original)}
-          </div>
-        ),
-      })),
-    [columns],
-  )
+      cell: ({ row }) => (
+        <div className={cn('text-sm', col.align === 'right' ? 'text-right' : 'text-left')}>
+          {col.render(row.original)}
+        </div>
+      ),
+    }))
+
+    // Actions lead the row, so the button is in the same place on every screen.
+    if (!actions) return mapped
+    return [createActionsColumn<T>(actions) as unknown as GridColumn<T>, ...mapped]
+  }, [columns, actions])
 
   return (
     <DataGrid
@@ -128,6 +141,7 @@ export function DataTable<T>({
       preToggleActions={toolbar}
       selectedRowIds={selectedKey ? [selectedKey] : undefined}
       onRowClick={onSelect || onOpen ? handleRowClick : undefined}
+      onRowSelect={onSelect ? (selected) => selected[0] && onSelect(selected[0]) : undefined}
       enableRowClickSelection={Boolean(onSelect || onOpen)}
       rowSelectionMode="single"
       singleSelectionStyle="highlight"
@@ -143,6 +157,7 @@ export function DataTable<T>({
       paginationPageSize={pageSize}
       stickyHeader
       compactMode
+      enableStickyActions={Boolean(actions)}
       enableSummary={Boolean(summary)}
       summaryConfig={summary ? { columns: summary, position: 'bottom' } : undefined}
     />
