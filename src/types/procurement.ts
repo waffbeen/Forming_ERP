@@ -80,8 +80,17 @@ export interface GrnLine {
   /** What the delivery note claimed, and what the scale actually read. */
   challanQty: number
   receivedQty: number
-  /** Reels are received as individual rolls, each with its own barcode. */
+  /**
+   * The batch this line is. Reels arrive as individual rolls, each with its own
+   * barcode, its own weight and its own inspection — so one purchase order line
+   * becomes as many receipt lines as there were reels on the vehicle, and QC
+   * runs against each of them rather than against a total.
+   */
   reelId: string | null
+  /** Which reel of the consignment this is, as the store counted them off. */
+  batchNo?: number
+  /** How many came in on this consignment, for the line to be read against. */
+  batchesOnConsignment?: number
   thicknessMicrons: number | null
   /**
    * The strictest outcome QC recorded against the line, which is what the
@@ -116,6 +125,30 @@ export interface GrnLine {
   rejectDisposition: RejectDisposition | null
 }
 
+/**
+ * The ten things the gate looks at before anything is booked in, taken from
+ * Thomson's own inward check and worded for what arrives here: reels on a
+ * vehicle rather than paper on a pallet.
+ *
+ * A failed check does not stop the receipt — the material is already at the
+ * gate and refusing to record it helps nobody — but it is on the record, and
+ * incoming QC sees it against the batch.
+ */
+export const INWARD_CHECKS = [
+  'Vehicle as per the order',
+  'Load stacked and aligned',
+  'Documents match the consignment',
+  'Packing and labelling intact',
+  'Vehicle clean and dry',
+  'No damage: dents, wet or cuts',
+  'Reel count matches the challan',
+  'Gauge marked on every reel',
+  'Weight matches the challan',
+  'Reported inside the delivery window',
+] as const
+
+export type InwardCheck = (typeof INWARD_CHECKS)[number]
+
 export interface GoodsReceiptNote extends MasterBase {
   grnId: string
   grnNumber: string
@@ -127,6 +160,26 @@ export interface GoodsReceiptNote extends MasterBase {
   receivedByUserId: string
   inspectedByUserId: string | null
   lines: GrnLine[]
+
+  /* ------------------------------------------------ what came with the load */
+
+  /** The supplier's own despatch document, and the date on it. */
+  deliveryNoteNo?: string
+  deliveryNoteDate?: string
+  /** Statutory, and the first thing an auditor asks for. */
+  eWayBillNo?: string
+  eWayBillDate?: string
+  /** Certificate of conformity for the batch, where the grade needs one. */
+  cocNo?: string
+  vehicleNo?: string
+  transporter?: string
+  /** Where the vehicle was unloaded, which is not always where stock ends up. */
+  unloadingWarehouseId?: string
+  /** The gate's inward check, keyed by the check's own wording. */
+  inwardChecks?: Record<string, boolean>
+  /** Freight and anything else on the invoice that is not the goods. */
+  freightAmount?: number
+  otherCharges?: number
 }
 
 // ----------------------------------------------------------------- Inventory

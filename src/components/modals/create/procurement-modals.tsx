@@ -7,13 +7,14 @@ import {
   Button, Checkbox, DerivedField, FormGrid, FormSection, Input, Select, SelectWithCreate,
 } from '@/components/ui'
 import {
-  BINS, ITEMS, JOB_CARDS, PURCHASE_ORDERS, PURCHASE_REQUISITIONS, SUPPLIERS,
+  BINS, ITEMS, JOB_CARDS, PURCHASE_ORDERS, PURCHASE_REQUISITIONS, SUPPLIERS, WAREHOUSES,
   onOrderQty, stockOnHand,
 } from '@/data'
 import { PLANT } from '@/config/plant'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import { ItemModal } from './business-modals'
 import { SupplierModal } from './business-modals'
+import { INWARD_CHECKS } from '@/types/procurement'
 import type { Item } from '@/types/masters'
 import type { MasterModalProps } from './master-modals'
 
@@ -100,6 +101,30 @@ const PR_TEMPLATE = {
 const PO_TEMPLATE = {
   gridTemplateColumns:
     '24px minmax(210px,1.3fr) 104px minmax(104px,0.6fr) 92px 68px 104px 128px minmax(130px,0.9fr) 28px',
+}
+
+/** One reel off the vehicle, before the receipt is booked. */
+interface DraftBatch {
+  key: string
+  batchNo: number
+  reelId: string
+  weight: string
+  microns: string
+  binId: string
+}
+
+let batchSeq = 0
+const newBatch = (batchNo: number): DraftBatch => ({
+  key: `B${++batchSeq}`,
+  batchNo,
+  reelId: '',
+  weight: '',
+  microns: '',
+  binId: '',
+})
+
+const BATCH_TEMPLATE = {
+  gridTemplateColumns: '32px minmax(150px,1fr) 110px 96px minmax(190px,1.1fr) 28px',
 }
 
 let lineSeq = 0
@@ -663,164 +688,452 @@ export function GrnModal({ isOpen, onClose }: MasterModalProps) {
   const [poNumber, setPoNumber] = React.useState('')
   const [challan, setChallan] = React.useState('')
   const [invoice, setInvoice] = React.useState('')
-  const [reelId, setReelId] = React.useState('')
-  const [challanQty, setChallanQty] = React.useState('')
-  const [weighedQty, setWeighedQty] = React.useState('')
-  const [thickness, setThickness] = React.useState('')
-  const [qcDone, setQcDone] = React.useState(false)
-  const [qcStatus, setQcStatus] = React.useState('APPROVED')
-  const [binId, setBinId] = React.useState('')
+  const [deliveryNote, setDeliveryNote] = React.useState('')
+  const [deliveryNoteDate, setDeliveryNoteDate] = React.useState('')
+  const [eWayBill, setEWayBill] = React.useState('')
+  const [eWayBillDate, setEWayBillDate] = React.useState('')
+  const [cocNo, setCocNo] = React.useState('')
+  const [vehicleNo, setVehicleNo] = React.useState('')
+  const [transporter, setTransporter] = React.useState('')
+  const [warehouseId, setWarehouseId] = React.useState('')
+  const [freight, setFreight] = React.useState('')
+  const [otherCharges, setOtherCharges] = React.useState('')
+  /* A check is OK, a finding, or not looked at yet — three states, so the
+     value is allowed to be missing rather than defaulting to a pass. */
+  const [checks, setChecks] = React.useState<Record<string, boolean | undefined>>({})
+
+  /** How the consignment was split when it came off the vehicle. */
+  const [reelCount, setReelCount] = React.useState('1')
+  const [batches, setBatches] = React.useState<DraftBatch[]>([newBatch(1)])
+
+  React.useEffect(() => {
+    if (!isOpen) return
+    setPoNumber('')
+    setChallan('')
+    setInvoice('')
+    setDeliveryNote('')
+    setDeliveryNoteDate('')
+    setEWayBill('')
+    setEWayBillDate('')
+    setCocNo('')
+    setVehicleNo('')
+    setTransporter('')
+    setWarehouseId('')
+    setFreight('')
+    setOtherCharges('')
+    setChecks({})
+    setReelCount('1')
+    setBatches([newBatch(1)])
+  }, [isOpen])
 
   const po = PURCHASE_ORDERS.find((p) => p.poNumber === poNumber)
   const line = po?.lines[0]
   const item = ITEMS.find((i) => i.itemId === line?.itemId)
   const supplier = SUPPLIERS.find((s) => s.supplierId === po?.supplierId)
   const pending = line ? line.orderedQty - line.receivedQty : 0
+  const isReel = item?.itemType === 'RAW_MATERIAL'
 
-  const challanNum = Number(challanQty) || 0
-  const weighed = Number(weighedQty) || 0
-  const shortfall = challanNum - weighed
-  const overReceipt = line ? weighed > pending : false
+  /**
+   * The consignment arrives as reels and each one is booked on its own. Saying
+   * how many came and what one weighs lays out that many rows rather than
+   * making the store keep a tally on paper beside the screen.
+   */
+  const layOutReels = (count: number, weightEach: number) => {
+    const wanted = Math.min(Math.max(count, 1), 40)
+    setBatches((current) =>
+      Array.from({ length: wanted }, (_, i) => ({
+        ...(current[i] ?? newBatch(i + 1)),
+        batchNo: i + 1,
+        weight:
+          current[i]?.weight && !weightEach ? current[i].weight : weightEach ? String(weightEach) : '',
+      })),
+    )
+  }
 
-  const thicknessNum = Number(thickness) || 0
-  const belowFloor = thicknessNum > 0 && thicknessNum < PLANT.minMicrons
+  const patchBatch = (key: string, values: Partial<DraftBatch>) =>
+    setBatches((rows) => rows.map((r) => (r.key === key ? { ...r, ...values } : r)))
 
-  /* A roll under the plant floor cannot be accepted, whatever QC selects. */
-  const effectiveStatus = belowFloor ? 'REJECTED' : qcStatus
+  const received = batches.reduce((sum, b) => sum + (Number(b.weight) || 0), 0)
+  const overReceipt = line ? received > pending : false
 
-  const binOptions = BINS.filter((b) => {
-    if (effectiveStatus === 'APPROVED') return b.binType === 'QC_APPROVED'
-    if (effectiveStatus === 'QUARANTINE') return b.binType === 'QUARANTINE'
-    if (effectiveStatus === 'REJECTED') return b.binType === 'REJECTED'
-    return false
-  })
+  const failedChecks = INWARD_CHECKS.filter((c) => checks[c] === false)
+  const checkedCount = INWARD_CHECKS.filter((c) => checks[c] !== undefined).length
 
-  React.useEffect(() => {
-    setBinId(binOptions[0]?.binId ?? '')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveStatus])
+  const goodsValue = line ? received * line.ratePerUom : 0
+  const total = goodsValue + (Number(freight) || 0) + (Number(otherCharges) || 0)
 
-  const canSave = Boolean(poNumber && challan && weighed > 0 && (!qcDone || binId))
+  const canSave = Boolean(
+    poNumber && challan && received > 0 && !overReceipt && batches.every((b) => b.weight),
+  )
 
   return (
     <StandardModal
       isOpen={isOpen}
       onClose={onClose}
       title="New Goods Receipt"
-      badge={
-        qcDone
-          ? { label: `IQC ${effectiveStatus.toLowerCase()}`, tone: effectiveStatus === 'APPROVED' ? 'success' : effectiveStatus === 'QUARANTINE' ? 'warning' : 'error' }
-          : { label: 'Pending IQC', tone: 'muted' }
+      subtitle={
+        batches.length > 1
+          ? `${batches.length} ${isReel ? 'reels' : 'batches'} on this consignment`
+          : undefined
       }
-      size="lg"
+      badge={{ label: 'Pending inspection', tone: 'muted' }}
+      size="master"
       onSave={save}
       saving={saving}
       saveDisabled={!canSave}
       saveLabel="Book receipt"
       footerNote={
-        qcDone && effectiveStatus === 'APPROVED'
-          ? `Moves ${formatNumber(weighed, 1)} ${item?.uom ?? ''} into ${binOptions.find((b) => b.binId === binId)?.binCode ?? 'a bin'}`
-          : 'Stock moves only once IQC approves the line'
+        overReceipt
+          ? `Only ${formatNumber(pending)} ${item?.uom ?? ''} pending on this order`
+          : received > 0
+            ? `${formatNumber(received, 1)} ${item?.uom ?? ''} booked in as ${batches.length} ${
+                batches.length === 1 ? 'batch' : 'batches'
+              } · none of it stock until QC passes it`
+            : 'Book what came off the vehicle'
       }
     >
-      {!qcDone ? (
-        <div className="mb-5 flex items-start gap-3 rounded-md border border-bd-strong bg-bg-subtle p-3">
-          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-fg-muted" />
-          <div>
-            <h5 className="text-sm font-semibold">Booked, not yet in stock</h5>
-            <p className="mt-0.5 max-w-[62ch] text-xs text-fg-muted">
-              The receipt records what arrived. Nothing reaches a bin until incoming QC has measured it and picked an
-              outcome.
-            </p>
-          </div>
+      <div className="mb-5 flex items-start gap-3 rounded-xl border border-bd-strong bg-bg-subtle p-3">
+        <Lock className="mt-0.5 h-4 w-4 shrink-0 text-fg-muted" />
+        <div>
+          <h5 className="text-sm font-semibold">Booked, not yet in stock</h5>
+          <p className="mt-0.5 max-w-[74ch] text-xs text-fg-muted">
+            The receipt records what physically arrived, reel by reel. Each one is a batch, and
+            incoming QC inspects and signs off each batch on its own — nothing reaches a bin until it
+            does.
+          </p>
         </div>
-      ) : null}
+      </div>
 
-      <FormSection title="Receipt">
-        <FormGrid cols={2}>
+      <FormSection title="Against the order">
+        <FormGrid cols={3}>
           <Select
-            label="Against purchase order"
+            label="Purchase order"
             required
             placeholder="Select an open PO"
             value={poNumber}
             onChange={(e) => setPoNumber(e.target.value)}
-            options={PURCHASE_ORDERS.filter((p) => p.poStatus === 'OPEN' || p.poStatus === 'PART_RECEIVED').map((p) => ({
+            options={PURCHASE_ORDERS.filter(
+              (p) => p.poStatus === 'OPEN' || p.poStatus === 'PART_RECEIVED',
+            ).map((p) => ({
               value: p.poNumber,
               label: `${p.poNumber} — ${SUPPLIERS.find((s) => s.supplierId === p.supplierId)?.supplierName ?? ''}`,
+              description: `${p.lines.length} ${p.lines.length === 1 ? 'line' : 'lines'} · expected ${p.expectedDate}`,
             }))}
           />
           <DerivedField label="Supplier" value={supplier?.supplierName ?? '—'} />
-          <Input label="Supplier challan no" required mono value={challan} onChange={(e) => setChallan(e.target.value)} placeholder="SP/CH/26/4471" />
-          <Input label="Supplier invoice no" mono value={invoice} onChange={(e) => setInvoice(e.target.value)} placeholder="Leave blank if not received" />
-        </FormGrid>
-      </FormSection>
-
-      <FormSection title="Line">
-        <FormGrid cols={3}>
-          <DerivedField label="Item" value={item?.itemCode ?? '—'} />
-          <DerivedField label="Pending on the order" value={line ? `${formatNumber(pending)} ${item?.uom}` : '—'} />
-          <Input label="Reel / batch id" mono value={reelId} onChange={(e) => setReelId(e.target.value)} placeholder="RL-9260" />
-          <Input label="Challan quantity" unit={item?.uom ?? 'unit'} type="number" step="0.1" value={challanQty} onChange={(e) => setChallanQty(e.target.value)} />
-          <Input
-            label="Weighed quantity"
-            unit={item?.uom ?? 'unit'}
-            required
-            type="number"
-            step="0.1"
-            value={weighedQty}
-            onChange={(e) => setWeighedQty(e.target.value)}
-            error={overReceipt ? `Only ${formatNumber(pending)} pending on this order` : false}
-            helper={
-              !overReceipt && shortfall > 0
-                ? `${formatNumber(shortfall, 1)} short against the challan`
-                : undefined
+          <DerivedField
+            label="Pending on the order"
+            value={line ? `${formatNumber(pending)} ${item?.uom}` : '—'}
+          />
+          <DerivedField label="Item" value={item ? `${item.itemCode}` : '—'} />
+          <DerivedField
+            label="Ordered specification"
+            value={
+              item?.thicknessMicrons
+                ? `${item.thicknessMicrons} µm · ${item.deckleWidthMm ?? '—'} mm${item.colour ? ` · ${item.colour}` : ''}`
+                : '—'
             }
           />
-          <Input
-            label="Measured thickness"
-            unit="µm"
-            type="number"
-            value={thickness}
-            onChange={(e) => setThickness(e.target.value)}
-            error={belowFloor ? `Below the ${PLANT.minMicrons} µm floor, must be rejected` : false}
+          <DerivedField
+            label="Standard roll"
+            value={item?.standardRollWeightKg ? `${item.standardRollWeightKg} kg` : '—'}
           />
         </FormGrid>
       </FormSection>
 
-      <FormSection title="Incoming QC">
-        <Checkbox
-          label="Inspected"
-          hint="Tick once IQC has measured the material and decided where it goes"
-          checked={qcDone}
-          onChange={(e) => setQcDone(e.target.checked)}
-        />
-        {qcDone ? (
-          <div className="mt-3">
-            <FormGrid cols={2}>
-              <Select
-                label="Outcome"
-                required
-                value={effectiveStatus}
-                disabled={belowFloor}
-                onChange={(e) => setQcStatus(e.target.value)}
-                options={[
-                  { value: 'APPROVED', label: 'Approved, release to the store' },
-                  { value: 'QUARANTINE', label: 'Quarantine, hold pending decision' },
-                  { value: 'REJECTED', label: 'Rejected, return to supplier' },
-                ]}
-                helper={belowFloor ? 'Forced to rejected: under the plant thickness floor' : undefined}
-              />
-              <Select
-                label="Bin"
-                required
-                placeholder="Select bin"
-                value={binId}
-                onChange={(e) => setBinId(e.target.value)}
-                options={binOptions.map((b) => ({ value: b.binId, label: `${b.binCode} — ${b.binName}` }))}
-              />
-            </FormGrid>
+      <FormSection
+        title="The consignment"
+        description="What came with the load. These are the documents an auditor asks for by name."
+      >
+        <FormGrid cols={3}>
+          <Input
+            label="Supplier challan no"
+            required
+            mono
+            value={challan}
+            onChange={(e) => setChallan(e.target.value)}
+            placeholder="SP/CH/26/4471"
+          />
+          <Input
+            label="Delivery note no"
+            mono
+            value={deliveryNote}
+            onChange={(e) => setDeliveryNote(e.target.value)}
+            placeholder="Supplier's own despatch note"
+          />
+          <Input
+            label="Delivery note date"
+            type="date"
+            value={deliveryNoteDate}
+            onChange={(e) => setDeliveryNoteDate(e.target.value)}
+          />
+          <Input
+            label="E-way bill no"
+            mono
+            value={eWayBill}
+            onChange={(e) => setEWayBill(e.target.value)}
+            placeholder="12 digits"
+          />
+          <Input
+            label="E-way bill date"
+            type="date"
+            value={eWayBillDate}
+            onChange={(e) => setEWayBillDate(e.target.value)}
+          />
+          <Input
+            label="Supplier invoice no"
+            mono
+            value={invoice}
+            onChange={(e) => setInvoice(e.target.value)}
+            placeholder="Leave blank if not received"
+          />
+          <Input
+            label="COC / test certificate no"
+            mono
+            value={cocNo}
+            onChange={(e) => setCocNo(e.target.value)}
+            helper={item?.isFoodGrade ? 'Food contact grade: QC will ask for this' : undefined}
+          />
+          <Input
+            label="Vehicle no"
+            mono
+            value={vehicleNo}
+            onChange={(e) => setVehicleNo(e.target.value)}
+            placeholder="MH 48 AB 1234"
+          />
+          <Input
+            label="Transporter"
+            value={transporter}
+            onChange={(e) => setTransporter(e.target.value)}
+            placeholder="Who brought it"
+          />
+          <Select
+            label="Unloaded at"
+            placeholder="Select the warehouse"
+            value={warehouseId}
+            onChange={(e) => setWarehouseId(e.target.value)}
+            options={WAREHOUSES.map((w) => ({ value: w.warehouseId, label: w.warehouseName }))}
+          />
+          <Input
+            label="Freight"
+            unit="₹"
+            type="number"
+            step="0.01"
+            value={freight}
+            onChange={(e) => setFreight(e.target.value)}
+          />
+          <Input
+            label="Other charges"
+            unit="₹"
+            type="number"
+            step="0.01"
+            value={otherCharges}
+            onChange={(e) => setOtherCharges(e.target.value)}
+          />
+        </FormGrid>
+      </FormSection>
+
+      <FormSection
+        title="Reels on the consignment"
+        description="One row per reel, because each is inspected, approved and issued on its own."
+      >
+        <FormGrid cols={3}>
+          <Input
+            label={isReel ? 'Number of reels' : 'Number of batches'}
+            type="number"
+            min={1}
+            max={40}
+            value={reelCount}
+            onChange={(e) => {
+              setReelCount(e.target.value)
+              layOutReels(Number(e.target.value) || 1, 0)
+            }}
+          />
+          <Input
+            label="Weight per reel"
+            unit={item?.uom ?? 'KG'}
+            type="number"
+            step="0.1"
+            placeholder={item?.standardRollWeightKg ? String(item.standardRollWeightKg) : ''}
+            onChange={(e) => layOutReels(Number(reelCount) || 1, Number(e.target.value) || 0)}
+            helper="Fills every row; change any one that weighed differently"
+          />
+          <DerivedField
+            label="Received in total"
+            value={`${formatNumber(received, 1)} ${item?.uom ?? ''}`}
+            emphasis={received > 0}
+          />
+        </FormGrid>
+
+        <div className="mt-3 overflow-x-auto">
+          <div className="min-w-[760px]">
+            <div className={`${LINE_GRID} border-b border-bd-subtle px-2 pb-1.5`} style={BATCH_TEMPLATE}>
+              <span className="label-caps">Reel</span>
+              <span className="label-caps">Batch / roll id</span>
+              <span className="label-caps text-right">Weight</span>
+              <span className="label-caps text-right">Gauge</span>
+              <span className="label-caps">Put away at</span>
+              <span />
+            </div>
+            <ul>
+              {batches.map((batch, index) => {
+                const thin =
+                  Number(batch.microns) > 0 && Number(batch.microns) < PLANT.minMicrons
+                return (
+                  <li
+                    key={batch.key}
+                    className={
+                      thin
+                        ? 'border-b border-bd-subtle bg-error-subtle last:border-0'
+                        : 'border-b border-bd-subtle last:border-0 hover:bg-bg-hover/60'
+                    }
+                  >
+                    <div className={`${LINE_GRID} px-2 py-1.5`} style={BATCH_TEMPLATE}>
+                      <span className="font-mono text-xs text-fg-subtle">{index + 1}</span>
+                      <Input
+                        mono
+                        value={batch.reelId}
+                        placeholder="RL-9260"
+                        onChange={(e) => patchBatch(batch.key, { reelId: e.target.value })}
+                      />
+                      <Input
+                        type="number"
+                        step="0.1"
+                        className="text-right"
+                        value={batch.weight}
+                        onChange={(e) => patchBatch(batch.key, { weight: e.target.value })}
+                      />
+                      <Input
+                        type="number"
+                        className="text-right"
+                        value={batch.microns}
+                        placeholder={item?.thicknessMicrons ? String(item.thicknessMicrons) : 'µm'}
+                        onChange={(e) => patchBatch(batch.key, { microns: e.target.value })}
+                      />
+                      <Select
+                        placeholder="Quarantine"
+                        value={batch.binId}
+                        onChange={(e) => patchBatch(batch.key, { binId: e.target.value })}
+                        options={BINS.filter((b) => b.binType === 'QUARANTINE' || b.binType === 'GENERAL').map(
+                          (b) => ({ value: b.binId, label: `${b.binCode} — ${b.binName}` }),
+                        )}
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Remove reel ${index + 1}`}
+                        disabled={batches.length === 1}
+                        onClick={() =>
+                          setBatches((rows) =>
+                            rows.length === 1 ? rows : rows.filter((r) => r.key !== batch.key),
+                          )
+                        }
+                        className="grid h-7 w-7 place-items-center rounded-md text-fg-subtle transition-colors hover:bg-error-subtle hover:text-error disabled:opacity-35"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {thin ? (
+                      <p className="px-2 pb-1.5 pl-10 text-2xs text-error">
+                        Under the {PLANT.minMicrons} µm plant floor — incoming QC will have to
+                        return this reel
+                      </p>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
           </div>
-        ) : null}
+        </div>
+
+        <div className="mt-2.5">
+          <Button
+            icon={Plus}
+            onClick={() => setBatches((rows) => [...rows, newBatch(rows.length + 1)])}
+          >
+            Add a reel
+          </Button>
+        </div>
+      </FormSection>
+
+      <FormSection
+        title="Inward check at the gate"
+        description="Looked at before the vehicle is released. A finding does not stop the receipt — it goes on the record for incoming QC to see."
+      >
+        <ul className="grid gap-1.5 lg:grid-cols-2">
+          {INWARD_CHECKS.map((check) => {
+            const state = checks[check]
+            return (
+              <li
+                key={check}
+                className={
+                  state === false
+                    ? 'flex items-center gap-2 rounded-xl border border-error/50 bg-error-subtle px-3 py-1.5'
+                    : 'flex items-center gap-2 rounded-xl border border-bd-default px-3 py-1.5'
+                }
+              >
+                <span className="min-w-0 flex-1 truncate text-xs">{check}</span>
+                <span className="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    aria-pressed={state === true}
+                    onClick={() => setChecks((c) => ({ ...c, [check]: c[check] === true ? undefined : true }))}
+                    className={
+                      state === true
+                        ? 'rounded-md border border-success bg-success px-2 py-0.5 text-2xs font-medium text-fg-inverse'
+                        : 'rounded-md border border-bd-default px-2 py-0.5 text-2xs text-fg-muted hover:bg-bg-hover'
+                    }
+                  >
+                    OK
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={state === false}
+                    onClick={() => setChecks((c) => ({ ...c, [check]: c[check] === false ? undefined : false }))}
+                    className={
+                      state === false
+                        ? 'rounded-md border border-error bg-error px-2 py-0.5 text-2xs font-medium text-fg-inverse'
+                        : 'rounded-md border border-bd-default px-2 py-0.5 text-2xs text-fg-muted hover:bg-bg-hover'
+                    }
+                  >
+                    Finding
+                  </button>
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+        <p className="mt-2 text-xs text-fg-muted">
+          {checkedCount} of {INWARD_CHECKS.length} looked at
+          {failedChecks.length > 0 ? (
+            <span className="text-error">
+              {' '}
+              · {failedChecks.length} finding{failedChecks.length > 1 ? 's' : ''} recorded against
+              the consignment
+            </span>
+          ) : null}
+        </p>
+      </FormSection>
+
+      <FormSection title="Receipt value">
+        <FormGrid cols={3}>
+          <DerivedField
+            label="Goods"
+            value={goodsValue > 0 ? formatCurrency(goodsValue, 0) : '—'}
+          />
+          <DerivedField
+            label="Freight and other"
+            value={
+              Number(freight) || Number(otherCharges)
+                ? formatCurrency((Number(freight) || 0) + (Number(otherCharges) || 0), 0)
+                : '—'
+            }
+          />
+          <DerivedField
+            label="Landed value"
+            value={total > 0 ? formatCurrency(total, 0) : '—'}
+            emphasis
+          />
+        </FormGrid>
       </FormSection>
     </StandardModal>
   )
