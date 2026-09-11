@@ -26,7 +26,33 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }],
   },
   {
-    title: 'Order to Cash',
+    /* Set-up sits at the top because nothing below it works until it is done:
+       an item cannot be ordered, inspected or issued before it exists. */
+    title: 'Masters',
+    items: [
+      { label: 'Clients', href: '/master/client', icon: Users },
+      { label: 'Suppliers', href: '/master/supplier', icon: Truck },
+      { label: 'Categories', href: '/master/category', icon: Tags },
+      { label: 'Items', href: '/master/item', icon: ScanBarcode },
+      { label: 'Products', href: '/master/product', icon: Package },
+      { label: 'Artwork', href: '/master/artwork', icon: Palette },
+      { label: 'Processes', href: '/master/process', icon: Route },
+      { label: 'Material Grades', href: '/master/material', icon: Layers },
+      { label: 'Machines', href: '/master/machine', icon: Cog },
+      { label: 'Dies & Tools', href: '/master/die', icon: Stamp },
+      { label: 'QC Parameters', href: '/master/item-qc-parameter', icon: FlaskConical },
+      { label: 'Reel Stock', href: '/master/reel', icon: Disc3 },
+      { label: 'Warehouse & Bins', href: '/master/warehouse', icon: Warehouse },
+      { label: 'Users', href: '/master/user', icon: IdCard },
+      { label: 'Employees', href: '/master/employee', icon: Boxes },
+      { label: 'Modules', href: '/master/module', icon: SlidersHorizontal },
+      { label: 'Document Prefixes', href: '/master/prefix', icon: Hash },
+    ],
+  },
+  {
+    /* Named for the journey rather than the department: the same enquiry
+       becomes an estimate, an order and a job card without changing hands. */
+    title: 'Enquiry to Job Card',
     items: [
       { label: 'Sales Enquiries', href: '/sales/enquiry', icon: MessageSquareQuote, badge: '2' },
       { label: 'Estimations', href: '/sales/estimation', icon: Calculator, badge: '3' },
@@ -45,13 +71,15 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Procurement',
+    /* Buying and holding material, in the order it moves: asked for, ordered,
+       received, issued to a job. */
+    title: 'Inventory',
     items: [
       { label: 'Requisitions', href: '/procurement/requisition', icon: PrIcon, badge: '3' },
       { label: 'Purchase Orders', href: '/procurement/purchase-order', icon: ShoppingCart, badge: '5' },
       { label: 'Goods Receipt', href: '/procurement/grn', icon: PackagePlus, badge: '6' },
       { label: 'Material Issue', href: '/inventory/material-issue', icon: ArrowRightLeft },
-      { label: 'Inventory', href: '/inventory', icon: StockIcon },
+      { label: 'Stock', href: '/inventory', icon: StockIcon },
     ],
   },
   {
@@ -68,47 +96,10 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Fulfilment',
+    title: 'Other',
     items: [
       { label: 'Packing & Dispatch', href: '/packing', icon: PackageCheck, badge: '4' },
       { label: 'Recycling', href: '/recycling', icon: Recycle },
-    ],
-  },
-  {
-    title: 'Masters · Business',
-    items: [
-      { label: 'Clients', href: '/master/client', icon: Users },
-      { label: 'Suppliers', href: '/master/supplier', icon: Truck },
-      { label: 'Categories', href: '/master/category', icon: Tags },
-      { label: 'Items', href: '/master/item', icon: ScanBarcode },
-      { label: 'Products', href: '/master/product', icon: Package },
-    ],
-  },
-  {
-    title: 'Masters · Production',
-    items: [
-      { label: 'Artwork', href: '/master/artwork', icon: Palette },
-      { label: 'Processes', href: '/master/process', icon: Route },
-      { label: 'Material Grades', href: '/master/material', icon: Layers },
-      { label: 'Machines', href: '/master/machine', icon: Cog },
-      { label: 'Dies & Tools', href: '/master/die', icon: Stamp },
-      { label: 'QC Parameters', href: '/master/item-qc-parameter', icon: FlaskConical },
-    ],
-  },
-  {
-    title: 'Masters · Inventory',
-    items: [
-      { label: 'Reel Stock', href: '/master/reel', icon: Disc3 },
-      { label: 'Warehouse & Bins', href: '/master/warehouse', icon: Warehouse },
-    ],
-  },
-  {
-    title: 'Masters · System',
-    items: [
-      { label: 'Users', href: '/master/user', icon: IdCard },
-      { label: 'Employees', href: '/master/employee', icon: Boxes },
-      { label: 'Modules', href: '/master/module', icon: SlidersHorizontal },
-      { label: 'Document Prefixes', href: '/master/prefix', icon: Hash },
     ],
   },
 ]
