@@ -12,8 +12,10 @@ import {
 } from '@/data'
 import { PLANT } from '@/config/plant'
 import { formatCurrency, formatNumber } from '@/lib/utils'
-import { ItemModal } from './business-modals'
+import { ItemPickerModal } from './item-picker-modal'
 import { SupplierModal } from './business-modals'
+import { previewNumber } from '@/lib/document-number'
+import { GRNS } from '@/data'
 import { INWARD_CHECKS } from '@/types/procurement'
 import type { Item } from '@/types/masters'
 import type { MasterModalProps } from './master-modals'
@@ -40,35 +42,6 @@ function useMockSave(
   }
   return { saving, save }
 }
-
-/**
- * What a buyer needs to recognise the item, on two lines: the code and the
- * name, then the specification it is bought on. A reel reads as its polymer,
- * gauge, deckle and colour; anything else reads as the pack it comes in.
- */
-function itemDescription(item: Item) {
-  const parts: string[] = []
-  if (item.materialType) {
-    parts.push(item.materialType)
-    if (item.thicknessMicrons) parts.push(`${item.thicknessMicrons} µm`)
-    if (item.deckleWidthMm) parts.push(`${item.deckleWidthMm} mm deckle`)
-    if (item.colour) parts.push(item.colour)
-    if (item.standardRollWeightKg) parts.push(`${item.standardRollWeightKg} kg roll`)
-  }
-  parts.push(
-    item.conversionToStock > 1
-      ? `bought in ${item.purchaseUom} of ${item.conversionToStock} ${item.uom}`
-      : `bought and stocked in ${item.uom}`,
-  )
-  if (item.minOrderQtyKg) parts.push(`min ${item.minOrderQtyKg} ${item.uom}`)
-  return parts.join(' · ')
-}
-
-const itemOptions = ITEMS.filter((i) => i.status === 'ACTIVE').map((i) => ({
-  value: i.itemId,
-  label: `${i.itemCode} — ${i.itemName}`,
-  description: itemDescription(i),
-}))
 
 // ------------------------------------------------------------- Document lines
 
@@ -127,6 +100,21 @@ const BATCH_TEMPLATE = {
   gridTemplateColumns: '32px minmax(150px,1fr) 110px 96px minmax(190px,1.1fr) 28px',
 }
 
+/**
+ * What was chosen, on the row. The item is not asked for again here: it was
+ * picked off the master with its specification in front of the buyer, so the
+ * row states it rather than offering it.
+ */
+function LineItemCell({ item }: { item: Item | undefined }) {
+  if (!item) return <span className="text-xs text-fg-subtle">—</span>
+  return (
+    <span className="block min-w-0">
+      <span className="block truncate font-mono text-xs font-semibold">{item.itemCode}</span>
+      <span className="block truncate text-2xs text-fg-muted">{item.itemName}</span>
+    </span>
+  )
+}
+
 let lineSeq = 0
 const newLine = (): DraftLine => ({ key: `L${++lineSeq}`, itemId: '', quantity: '' })
 
@@ -137,21 +125,31 @@ const newLine = (): DraftLine => ({ key: `L${++lineSeq}`, itemId: '', quantity: 
  * replace is laid out, and the way the tables underneath already were.
  */
 function useDraftLines() {
-  const [lines, setLines] = React.useState<DraftLine[]>([newLine()])
+  const [lines, setLines] = React.useState<DraftLine[]>([])
 
-  const add = () => setLines((rows) => [...rows, newLine()])
-  const remove = (key: string) =>
-    setLines((rows) => (rows.length === 1 ? [newLine()] : rows.filter((r) => r.key !== key)))
+  /** Everything ticked in the picker goes on as one row each. */
+  const addItems = (itemIds: string[], open?: (item: Item) => Partial<DraftLine>) =>
+    setLines((rows) => [
+      ...rows,
+      ...itemIds
+        .filter((id) => !rows.some((r) => r.itemId === id))
+        .map((id) => {
+          const item = ITEMS.find((i) => i.itemId === id)
+          return { ...newLine(), itemId: id, ...(item && open ? open(item) : {}) }
+        }),
+    ])
+
+  const remove = (key: string) => setLines((rows) => rows.filter((r) => r.key !== key))
   const patch = (key: string, values: Partial<DraftLine>) =>
     setLines((rows) => rows.map((r) => (r.key === key ? { ...r, ...values } : r)))
-  const reset = () => setLines([newLine()])
+  const reset = () => setLines([])
 
   /** The same item twice on one document is a keying slip, never an intent. */
   const duplicates = lines
     .map((r) => r.itemId)
     .filter((id, i, all) => id && all.indexOf(id) !== i)
 
-  return { lines, add, remove, patch, reset, duplicates }
+  return { lines, addItems, remove, patch, reset, duplicates }
 }
 
 // ------------------------------------------------------- Purchase requisition
@@ -159,7 +157,8 @@ function useDraftLines() {
 export function RequisitionModal({ isOpen, onClose }: MasterModalProps) {
   const { saving, save } = useMockSave(onClose)
   const [department, setDepartment] = React.useState('')
-  const { lines, add, remove, patch, reset, duplicates } = useDraftLines()
+  const [pickerOpen, setPickerOpen] = React.useState(false)
+  const { lines, addItems, remove, patch, reset, duplicates } = useDraftLines()
 
   React.useEffect(() => {
     if (isOpen) reset()
@@ -218,7 +217,14 @@ export function RequisitionModal({ isOpen, onClose }: MasterModalProps) {
               { value: 'Dispatch', label: 'Dispatch' },
             ]}
           />
-          <DerivedField label="PR number" value="Assigned on submit" />
+          <DerivedField
+            label="PR number"
+            value={previewNumber(
+              'PURCHASE_REQUISITION',
+              PURCHASE_REQUISITIONS.map((r) => r.prNumber),
+            )}
+            emphasis
+          />
         </FormGrid>
       </FormSection>
 
@@ -252,29 +258,7 @@ export function RequisitionModal({ isOpen, onClose }: MasterModalProps) {
                   >
                     <div className={`${LINE_GRID} px-2 py-1.5`} style={PR_TEMPLATE}>
                       <span className="font-mono text-xs text-fg-subtle">{index + 1}</span>
-                      <SelectWithCreate
-                        placeholder="Select or add an item"
-                        value={line.itemId}
-                        onChange={(next) => {
-                          const picked = ITEMS.find((i) => i.itemId === next)
-                          const shortfall = picked
-                            ? Math.max(
-                                picked.reorderLevel -
-                                  stockOnHand(picked.itemId) -
-                                  onOrderQty(picked.itemId),
-                                0,
-                              )
-                            : 0
-                          patch(line.key, {
-                            itemId: next,
-                            quantity: line.quantity || (shortfall > 0 ? String(shortfall) : ''),
-                          })
-                        }}
-                        options={itemOptions}
-                        error={Boolean(line.itemId && duplicates.includes(line.itemId))}
-                        createLabel="New item"
-                        renderCreateModal={(props) => <ItemModal {...props} />}
-                      />
+                      <LineItemCell item={item} />
                       <span className="flex items-center gap-1.5">
                         <Input
                           type="number"
@@ -331,12 +315,35 @@ export function RequisitionModal({ isOpen, onClose }: MasterModalProps) {
           </div>
         </div>
 
+        {lines.length === 0 ? (
+          <p className="px-2 py-6 text-center text-sm text-fg-muted">
+            Nothing on the requisition yet. Add what the department needs from the item master.
+          </p>
+        ) : null}
+
         <div className="mt-2.5">
-          <Button icon={Plus} onClick={add}>
-            Add another item
+          <Button variant="primary" icon={Plus} onClick={() => setPickerOpen(true)}>
+            {lines.length === 0 ? 'Add items' : 'Add more items'}
           </Button>
         </div>
       </FormSection>
+
+      <ItemPickerModal
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        alreadyChosen={lines.map((l) => l.itemId).filter(Boolean)}
+        title="Add items to the requisition"
+        onAdd={(itemIds) =>
+          addItems(itemIds, (item) => ({
+            /* The line opens at what it would take to get back to the reorder
+               level, which is the reason the department is asking. */
+            quantity: String(
+              Math.max(item.reorderLevel - stockOnHand(item.itemId) - onOrderQty(item.itemId), 0) ||
+                '',
+            ),
+          }))
+        }
+      />
     </StandardModal>
   )
 }
@@ -349,7 +356,8 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
   const [prNumber, setPrNumber] = React.useState('')
   const [gst, setGst] = React.useState('18')
   const [expected, setExpected] = React.useState('')
-  const { lines, add, remove, patch, reset, duplicates } = useDraftLines()
+  const [pickerOpen, setPickerOpen] = React.useState(false)
+  const { lines, addItems, remove, patch, reset, duplicates } = useDraftLines()
 
   React.useEffect(() => {
     if (isOpen) reset()
@@ -467,6 +475,11 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
             onChange={(e) => setPrNumber(e.target.value)}
             options={approved.map((p) => ({ value: p.prNumber, label: `${p.prNumber} — ${p.department}` }))}
           />
+          <DerivedField
+            label="PO number"
+            value={previewNumber('PURCHASE_ORDER', PURCHASE_ORDERS.map((o) => o.poNumber))}
+            emphasis
+          />
           <Input
             label="Expected delivery"
             required
@@ -545,29 +558,7 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
                     >
                       <div className={`${LINE_GRID} px-2 py-1.5`} style={PO_TEMPLATE}>
                         <span className="font-mono text-xs text-fg-subtle">{index + 1}</span>
-                        <SelectWithCreate
-                          placeholder="Select or add an item"
-                          value={line.itemId}
-                          onChange={(next) => {
-                            /* The item brings its own price and its own minimum,
-                               so the line opens on them rather than on nothing. */
-                            const picked = ITEMS.find((i) => i.itemId === next)
-                            patch(line.key, {
-                              itemId: next,
-                              rate: picked ? String(picked.ratePerUom) : '',
-                              quantity:
-                                line.quantity ||
-                                (picked?.minOrderQtyKg ? String(picked.minOrderQtyKg) : ''),
-                              deliveryDate: line.deliveryDate || expected,
-                            })
-                          }}
-                          options={itemOptions}
-                          error={Boolean(
-                            polymerMismatch || (line.itemId && duplicates.includes(line.itemId)),
-                          )}
-                          createLabel="New item"
-                          renderCreateModal={(props) => <ItemModal {...props} />}
-                        />
+                        <LineItemCell item={item} />
                         <span className="min-w-0 font-mono text-2xs text-fg-muted">
                           {isReel && item?.thicknessMicrons ? (
                             <>
@@ -663,12 +654,34 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
           </div>
         </div>
 
+        {lines.length === 0 ? (
+          <p className="px-2 py-6 text-center text-sm text-fg-muted">
+            Nothing on the order yet. Add what the supplier is being sent from the item master.
+          </p>
+        ) : null}
+
         <div className="mt-2.5">
-          <Button icon={Plus} onClick={add}>
-            Add another item
+          <Button variant="primary" icon={Plus} onClick={() => setPickerOpen(true)}>
+            {lines.length === 0 ? 'Add items' : 'Add more items'}
           </Button>
         </div>
       </FormSection>
+
+      <ItemPickerModal
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        alreadyChosen={lines.map((l) => l.itemId).filter(Boolean)}
+        supplierId={supplierId}
+        title="Add items to the order"
+        onAdd={(itemIds) =>
+          /* Each line opens on what the item master says it is bought at. */
+          addItems(itemIds, (item) => ({
+            rate: String(item.ratePerUom),
+            quantity: item.minOrderQtyKg ? String(item.minOrderQtyKg) : '',
+            deliveryDate: expected,
+          }))
+        }
+      />
 
       <FormSection title="Order value">
         <FormGrid cols={3}>
@@ -819,6 +832,11 @@ export function GrnModal({ isOpen, onClose }: MasterModalProps) {
               label: `${p.poNumber} — ${SUPPLIERS.find((s) => s.supplierId === p.supplierId)?.supplierName ?? ''}`,
               description: `${p.lines.length} ${p.lines.length === 1 ? 'line' : 'lines'} · expected ${p.expectedDate}`,
             }))}
+          />
+          <DerivedField
+            label="GRN number"
+            value={previewNumber('GRN', GRNS.map((g) => g.grnNumber))}
+            emphasis
           />
           <DerivedField label="Supplier" value={supplier?.supplierName ?? '—'} />
           <DerivedField
