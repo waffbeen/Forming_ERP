@@ -40,9 +40,33 @@ function useMockSave(
   return { saving, save }
 }
 
+/**
+ * What a buyer needs to recognise the item, on two lines: the code and the
+ * name, then the specification it is bought on. A reel reads as its polymer,
+ * gauge, deckle and colour; anything else reads as the pack it comes in.
+ */
+function itemDescription(item: Item) {
+  const parts: string[] = []
+  if (item.materialType) {
+    parts.push(item.materialType)
+    if (item.thicknessMicrons) parts.push(`${item.thicknessMicrons} µm`)
+    if (item.deckleWidthMm) parts.push(`${item.deckleWidthMm} mm deckle`)
+    if (item.colour) parts.push(item.colour)
+    if (item.standardRollWeightKg) parts.push(`${item.standardRollWeightKg} kg roll`)
+  }
+  parts.push(
+    item.conversionToStock > 1
+      ? `bought in ${item.purchaseUom} of ${item.conversionToStock} ${item.uom}`
+      : `bought and stocked in ${item.uom}`,
+  )
+  if (item.minOrderQtyKg) parts.push(`min ${item.minOrderQtyKg} ${item.uom}`)
+  return parts.join(' · ')
+}
+
 const itemOptions = ITEMS.filter((i) => i.status === 'ACTIVE').map((i) => ({
   value: i.itemId,
   label: `${i.itemCode} — ${i.itemName}`,
+  description: itemDescription(i),
 }))
 
 // ------------------------------------------------------------- Document lines
@@ -55,6 +79,13 @@ interface DraftLine {
   quantity: string
   /** Purchase orders only. */
   rate?: string
+  /** Purchase orders only: Thomson prices a line net of its own discount. */
+  discountPct?: string
+  /**
+   * When this line is wanted. It belongs to the line, not the order: a buyer
+   * asks for the reel this week and the cartons next month on one document.
+   */
+  deliveryDate?: string
   /** Requisitions only. */
   requiredBy?: string
   jobCardNo?: string
@@ -67,7 +98,8 @@ const PR_TEMPLATE = {
   gridTemplateColumns: '24px minmax(190px,1.3fr) minmax(110px,0.7fr) 140px minmax(150px,1fr) minmax(160px,1.1fr) 28px',
 }
 const PO_TEMPLATE = {
-  gridTemplateColumns: '24px minmax(210px,1.4fr) 110px minmax(110px,0.7fr) 100px 100px 28px',
+  gridTemplateColumns:
+    '24px minmax(210px,1.3fr) 104px minmax(104px,0.6fr) 92px 68px 104px 128px minmax(130px,0.9fr) 28px',
 }
 
 let lineSeq = 0
@@ -324,7 +356,29 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
 
     const belowMoq = Boolean(item?.minOrderQtyKg && qty > 0 && qty < item.minOrderQtyKg)
 
-    return { line, item, qty, rate, isReel, polymerMismatch, belowMoq, value: qty * rate }
+    /* Priced net of the line's own discount, the way Thomson's grid prices it. */
+    const discountPct = Math.min(Math.max(Number(line.discountPct) || 0, 0), 100)
+    const gross = qty * rate
+    const value = gross * (1 - discountPct / 100)
+
+    /* Bought in one unit, kept in another: an order for 10 boxes of tape is 720
+       pieces to the store, and the line says both. */
+    const stockQty = item ? qty * item.conversionToStock : 0
+    const converted = Boolean(item && item.conversionToStock > 1)
+
+    return {
+      line,
+      item,
+      qty,
+      rate,
+      isReel,
+      polymerMismatch,
+      belowMoq,
+      discountPct,
+      stockQty,
+      converted,
+      value,
+    }
   })
 
   const filled = rows.filter((r) => r.item)
@@ -394,7 +448,11 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
             type="date"
             value={expected}
             onChange={(e) => setExpected(e.target.value)}
-            helper={supplier ? `${supplier.leadTimeDays} day lead time` : undefined}
+            helper={
+              supplier
+                ? `${supplier.leadTimeDays} day lead time · lines can be wanted earlier`
+                : 'Lines can each be wanted on their own date'
+            }
           />
           <Select
             label="GST"
@@ -414,20 +472,36 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
         description="One order, as many items as the supplier is being sent. Each line opens at what the item master says it is bought at."
       >
         <div className="overflow-x-auto">
-          <div className="min-w-[940px]">
+          <div className="min-w-[1180px]">
             <div className={`${LINE_GRID} border-b border-bd-subtle px-2 pb-1.5`} style={PO_TEMPLATE}>
               <span className="label-caps">#</span>
               <span className="label-caps">Item</span>
               <span className="label-caps">Ordered as</span>
               <span className="label-caps text-right">Quantity</span>
               <span className="label-caps text-right">Rate</span>
+              <span className="label-caps text-right">Disc %</span>
               <span className="label-caps text-right">Value</span>
+              <span className="label-caps">Wanted by</span>
+              <span className="label-caps">Line remark</span>
               <span />
             </div>
 
             <ul>
               {rows.map(
-                ({ line, item, qty, isReel, polymerMismatch, belowMoq, value }, index) => {
+                (
+                  {
+                    line,
+                    item,
+                    qty,
+                    isReel,
+                    polymerMismatch,
+                    belowMoq,
+                    stockQty,
+                    converted,
+                    value,
+                  },
+                  index,
+                ) => {
                   const problem = polymerMismatch
                     ? `${supplier?.supplierName} is not approved for ${item?.materialType}`
                     : line.itemId && duplicates.includes(line.itemId)
@@ -459,6 +533,7 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
                               quantity:
                                 line.quantity ||
                                 (picked?.minOrderQtyKg ? String(picked.minOrderQtyKg) : ''),
+                              deliveryDate: line.deliveryDate || expected,
                             })
                           }}
                           options={itemOptions}
@@ -506,9 +581,27 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
                           value={line.rate ?? ''}
                           onChange={(e) => patch(line.key, { rate: e.target.value })}
                         />
+                        <Input
+                          type="number"
+                          step="0.5"
+                          className="text-right"
+                          value={line.discountPct ?? ''}
+                          placeholder="0"
+                          onChange={(e) => patch(line.key, { discountPct: e.target.value })}
+                        />
                         <span className="text-right font-mono text-xs font-medium">
                           {value > 0 ? formatCurrency(value, 0) : '—'}
                         </span>
+                        <Input
+                          type="date"
+                          value={line.deliveryDate ?? ''}
+                          onChange={(e) => patch(line.key, { deliveryDate: e.target.value })}
+                        />
+                        <Input
+                          value={line.remarks ?? ''}
+                          placeholder="Optional"
+                          onChange={(e) => patch(line.key, { remarks: e.target.value })}
+                        />
                         <button
                           type="button"
                           aria-label={`Remove line ${index + 1}`}
@@ -530,9 +623,11 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
                         >
                           {problem}
                         </p>
-                      ) : isReel && item?.isFoodGrade ? (
+                      ) : converted || (isReel && item?.isFoodGrade) ? (
                         <p className="px-2 pb-1.5 pl-10 text-2xs text-fg-subtle">
-                          Food contact grade · incoming QC will ask for a migration certificate
+                          {converted
+                            ? `${formatNumber(qty)} ${item?.purchaseUom} is ${formatNumber(stockQty)} ${item?.uom} into stock`
+                            : 'Food contact grade · incoming QC will ask for a migration certificate'}
                         </p>
                       ) : null}
                     </li>

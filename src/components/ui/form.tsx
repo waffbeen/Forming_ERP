@@ -102,6 +102,8 @@ Input.displayName = 'Input'
 export interface SelectOption {
   value: string
   label: string
+  /** A second line under the label: the specification, not a repeat of it. */
+  description?: string
 }
 
 export interface SelectProps {
