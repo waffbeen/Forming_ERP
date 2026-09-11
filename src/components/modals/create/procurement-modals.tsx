@@ -61,6 +61,15 @@ interface DraftLine {
   remarks?: string
 }
 
+/* One template per document, so the header and every row line up. */
+const LINE_GRID = 'grid items-center gap-2'
+const PR_TEMPLATE = {
+  gridTemplateColumns: '24px minmax(190px,1.3fr) minmax(110px,0.7fr) 140px minmax(150px,1fr) minmax(160px,1.1fr) 28px',
+}
+const PO_TEMPLATE = {
+  gridTemplateColumns: '24px minmax(210px,1.4fr) 110px minmax(110px,0.7fr) 100px 100px 28px',
+}
+
 let lineSeq = 0
 const newLine = (): DraftLine => ({ key: `L${++lineSeq}`, itemId: '', quantity: '' })
 
@@ -86,43 +95,6 @@ function useDraftLines() {
     .filter((id, i, all) => id && all.indexOf(id) !== i)
 
   return { lines, add, remove, patch, reset, duplicates }
-}
-
-/** The line's own header row: what it is, and the button that takes it off. */
-function LineHeading({
-  index,
-  item,
-  onRemove,
-  canRemove,
-}: {
-  index: number
-  item: Item | undefined
-  onRemove: () => void
-  canRemove: boolean
-}) {
-  return (
-    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-      <span className="text-xs font-semibold text-fg-muted">
-        Line {index + 1}
-        {item ? (
-          <span className="ml-2 font-mono font-normal text-fg-default">{item.itemCode}</span>
-        ) : null}
-        {item?.materialType ? (
-          <span className="ml-2 font-mono text-2xs font-normal text-fg-muted">
-            {item.materialType}
-            {item.thicknessMicrons ? ` · ${item.thicknessMicrons} µm` : ''}
-            {item.deckleWidthMm ? ` · ${item.deckleWidthMm} mm` : ''}
-            {item.colour ? ` · ${item.colour}` : ''}
-          </span>
-        ) : null}
-      </span>
-      {canRemove ? (
-        <Button variant="quiet" icon={Trash2} onClick={onRemove}>
-          Remove
-        </Button>
-      ) : null}
-    </div>
-  )
 }
 
 // ------------------------------------------------------- Purchase requisition
@@ -197,86 +169,109 @@ export function RequisitionModal({ isOpen, onClose }: MasterModalProps) {
         title="Items"
         description="One requisition can ask for as many items as the department needs."
       >
-        <div className="space-y-2.5">
-          {rows.map(({ line, item, qty, onHand, onOrder, covered }, index) => (
-            <div key={line.key} className="rounded-xl border border-bd-default px-3 py-3">
-              <LineHeading
-                index={index}
-                item={item}
-                canRemove={lines.length > 1}
-                onRemove={() => remove(line.key)}
-              />
-              <FormGrid cols={3}>
-                <SelectWithCreate
-                  label="Item"
-                  required
-                  placeholder="Select or add an item"
-                  value={line.itemId}
-                  onChange={(next) => {
-                    const picked = ITEMS.find((i) => i.itemId === next)
-                    const shortfall = picked
-                      ? Math.max(
-                          picked.reorderLevel - stockOnHand(picked.itemId) - onOrderQty(picked.itemId),
-                          0,
-                        )
-                      : 0
-                    patch(line.key, {
-                      itemId: next,
-                      quantity: line.quantity || (shortfall > 0 ? String(shortfall) : ''),
-                    })
-                  }}
-                  options={itemOptions}
-                  error={
-                    line.itemId && duplicates.includes(line.itemId)
-                      ? 'Already on another line'
-                      : false
-                  }
-                  createLabel="New item"
-                  renderCreateModal={(props) => <ItemModal {...props} />}
-                />
-                <Input
-                  label="Quantity"
-                  unit={item?.uom ?? 'unit'}
-                  required
-                  type="number"
-                  step="0.1"
-                  value={line.quantity}
-                  onChange={(e) => patch(line.key, { quantity: e.target.value })}
-                  helper={
-                    covered && qty > 0
-                      ? 'Stock plus what is on order already covers the reorder level'
-                      : item
-                        ? `${formatNumber(onHand, 1)} on hand · ${formatNumber(onOrder)} on order`
-                        : undefined
-                  }
-                />
-                <Input
-                  label="Required by"
-                  required
-                  type="date"
-                  value={line.requiredBy ?? ''}
-                  onChange={(e) => patch(line.key, { requiredBy: e.target.value })}
-                />
-                <Select
-                  label="Against job card"
-                  placeholder="None, stock replenishment"
-                  value={line.jobCardNo ?? ''}
-                  onChange={(e) => patch(line.key, { jobCardNo: e.target.value })}
-                  options={JOB_CARDS.map((j) => ({
-                    value: j.jobCardNo,
-                    label: `${j.jobCardNo} — ${j.customerName}`,
-                  }))}
-                />
-                <Input
-                  label="Justification"
-                  className="sm:col-span-2"
-                  value={line.remarks ?? ''}
-                  onChange={(e) => patch(line.key, { remarks: e.target.value })}
-                  placeholder="Why this is needed"
-                />
-              </FormGrid>
+        <div className="overflow-x-auto">
+          <div className="min-w-[900px]">
+            <div className={`${LINE_GRID} border-b border-bd-subtle px-2 pb-1.5`} style={PR_TEMPLATE}>
+              <span className="label-caps">#</span>
+              <span className="label-caps">Item</span>
+              <span className="label-caps text-right">Quantity</span>
+              <span className="label-caps">Required by</span>
+              <span className="label-caps">Against job card</span>
+              <span className="label-caps">Justification</span>
+              <span />
             </div>
-          ))}
+
+            <ul>
+              {rows.map(({ line, item, qty, onHand, onOrder, covered }, index) => {
+                const note = !item
+                  ? null
+                  : covered && qty > 0
+                    ? 'Stock plus what is on order already covers the reorder level'
+                    : `${formatNumber(onHand, 1)} ${item.uom} on hand · ${formatNumber(onOrder)} on order`
+                return (
+                  <li
+                    key={line.key}
+                    className="border-b border-bd-subtle last:border-0 hover:bg-bg-hover/60"
+                  >
+                    <div className={`${LINE_GRID} px-2 py-1.5`} style={PR_TEMPLATE}>
+                      <span className="font-mono text-xs text-fg-subtle">{index + 1}</span>
+                      <SelectWithCreate
+                        placeholder="Select or add an item"
+                        value={line.itemId}
+                        onChange={(next) => {
+                          const picked = ITEMS.find((i) => i.itemId === next)
+                          const shortfall = picked
+                            ? Math.max(
+                                picked.reorderLevel -
+                                  stockOnHand(picked.itemId) -
+                                  onOrderQty(picked.itemId),
+                                0,
+                              )
+                            : 0
+                          patch(line.key, {
+                            itemId: next,
+                            quantity: line.quantity || (shortfall > 0 ? String(shortfall) : ''),
+                          })
+                        }}
+                        options={itemOptions}
+                        error={Boolean(line.itemId && duplicates.includes(line.itemId))}
+                        createLabel="New item"
+                        renderCreateModal={(props) => <ItemModal {...props} />}
+                      />
+                      <span className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          className="text-right"
+                          value={line.quantity}
+                          onChange={(e) => patch(line.key, { quantity: e.target.value })}
+                        />
+                        <span className="w-8 shrink-0 font-mono text-2xs text-fg-muted">
+                          {item?.uom ?? ''}
+                        </span>
+                      </span>
+                      <Input
+                        type="date"
+                        value={line.requiredBy ?? ''}
+                        onChange={(e) => patch(line.key, { requiredBy: e.target.value })}
+                      />
+                      <Select
+                        placeholder="Stock replenishment"
+                        value={line.jobCardNo ?? ''}
+                        onChange={(e) => patch(line.key, { jobCardNo: e.target.value })}
+                        options={JOB_CARDS.map((j) => ({
+                          value: j.jobCardNo,
+                          label: `${j.jobCardNo} — ${j.customerName}`,
+                        }))}
+                      />
+                      <Input
+                        value={line.remarks ?? ''}
+                        onChange={(e) => patch(line.key, { remarks: e.target.value })}
+                        placeholder="Why this is needed"
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Remove line ${index + 1}`}
+                        disabled={lines.length === 1}
+                        onClick={() => remove(line.key)}
+                        className="grid h-7 w-7 place-items-center rounded-md text-fg-subtle transition-colors hover:bg-error-subtle hover:text-error disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-fg-subtle"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {line.itemId && duplicates.includes(line.itemId) ? (
+                      <p className="px-2 pb-1.5 pl-10 text-2xs text-error">
+                        This item is already on another line
+                      </p>
+                    ) : note ? (
+                      <p className="px-2 pb-1.5 pl-10 text-2xs text-fg-subtle">{note}</p>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
         </div>
 
         <div className="mt-2.5">
@@ -418,94 +413,134 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
         title="Items"
         description="One order, as many items as the supplier is being sent. Each line opens at what the item master says it is bought at."
       >
-        <div className="space-y-2.5">
-          {rows.map(({ line, item, qty, rate, isReel, polymerMismatch, belowMoq, value }, index) => (
-            <div
-              key={line.key}
-              className={
-                polymerMismatch
-                  ? 'rounded-xl border border-error/50 bg-error-subtle px-3 py-3'
-                  : 'rounded-xl border border-bd-default px-3 py-3'
-              }
-            >
-              <LineHeading
-                index={index}
-                item={item}
-                canRemove={lines.length > 1}
-                onRemove={() => remove(line.key)}
-              />
-              <FormGrid cols={3}>
-                <SelectWithCreate
-                  label="Item"
-                  required
-                  placeholder="Select or add an item"
-                  value={line.itemId}
-                  onChange={(next) => {
-                    /* The item brings its own price and its own minimum, so the
-                       line opens on them rather than on an empty box. */
-                    const picked = ITEMS.find((i) => i.itemId === next)
-                    patch(line.key, {
-                      itemId: next,
-                      rate: picked ? String(picked.ratePerUom) : '',
-                      quantity:
-                        line.quantity ||
-                        (picked?.minOrderQtyKg ? String(picked.minOrderQtyKg) : ''),
-                    })
-                  }}
-                  options={itemOptions}
-                  error={
-                    polymerMismatch
-                      ? `${supplier?.supplierName} is not approved for ${item?.materialType}`
-                      : line.itemId && duplicates.includes(line.itemId)
-                        ? 'Already on another line'
-                        : false
-                  }
-                  createLabel="New item"
-                  renderCreateModal={(props) => <ItemModal {...props} />}
-                />
-                <Input
-                  label="Quantity"
-                  unit={item?.uom ?? 'unit'}
-                  required
-                  type="number"
-                  step="0.1"
-                  value={line.quantity}
-                  onChange={(e) => patch(line.key, { quantity: e.target.value })}
-                  helper={
-                    belowMoq
-                      ? `Supplier's minimum is ${formatNumber(item?.minOrderQtyKg ?? 0)} ${item?.uom}`
-                      : undefined
-                  }
-                />
-                <Input
-                  label="Rate"
-                  unit={`₹ / ${item?.uom ?? 'unit'}`}
-                  type="number"
-                  step="0.01"
-                  value={line.rate ?? ''}
-                  onChange={(e) => patch(line.key, { rate: e.target.value })}
-                />
-                {isReel ? (
-                  <DerivedField
-                    label="Ordered specification"
-                    value={
-                      item?.thicknessMicrons
-                        ? `${item.thicknessMicrons} µm · ${item.deckleWidthMm ?? '—'} mm${item.colour ? ` · ${item.colour}` : ''}`
-                        : 'Not specified on the item'
-                    }
-                  />
-                ) : null}
-                <DerivedField
-                  label="Line value"
-                  value={value > 0 ? formatCurrency(value, 0) : '—'}
-                  emphasis={value > 0}
-                />
-                {isReel && item?.isFoodGrade ? (
-                  <DerivedField label="Incoming QC" value="Migration certificate required" />
-                ) : null}
-              </FormGrid>
+        <div className="overflow-x-auto">
+          <div className="min-w-[940px]">
+            <div className={`${LINE_GRID} border-b border-bd-subtle px-2 pb-1.5`} style={PO_TEMPLATE}>
+              <span className="label-caps">#</span>
+              <span className="label-caps">Item</span>
+              <span className="label-caps">Ordered as</span>
+              <span className="label-caps text-right">Quantity</span>
+              <span className="label-caps text-right">Rate</span>
+              <span className="label-caps text-right">Value</span>
+              <span />
             </div>
-          ))}
+
+            <ul>
+              {rows.map(
+                ({ line, item, qty, isReel, polymerMismatch, belowMoq, value }, index) => {
+                  const problem = polymerMismatch
+                    ? `${supplier?.supplierName} is not approved for ${item?.materialType}`
+                    : line.itemId && duplicates.includes(line.itemId)
+                      ? 'This item is already on another line'
+                      : belowMoq
+                        ? `Under the supplier's minimum of ${formatNumber(item?.minOrderQtyKg ?? 0)} ${item?.uom}`
+                        : null
+                  return (
+                    <li
+                      key={line.key}
+                      className={
+                        polymerMismatch
+                          ? 'border-b border-bd-subtle bg-error-subtle last:border-0'
+                          : 'border-b border-bd-subtle last:border-0 hover:bg-bg-hover/60'
+                      }
+                    >
+                      <div className={`${LINE_GRID} px-2 py-1.5`} style={PO_TEMPLATE}>
+                        <span className="font-mono text-xs text-fg-subtle">{index + 1}</span>
+                        <SelectWithCreate
+                          placeholder="Select or add an item"
+                          value={line.itemId}
+                          onChange={(next) => {
+                            /* The item brings its own price and its own minimum,
+                               so the line opens on them rather than on nothing. */
+                            const picked = ITEMS.find((i) => i.itemId === next)
+                            patch(line.key, {
+                              itemId: next,
+                              rate: picked ? String(picked.ratePerUom) : '',
+                              quantity:
+                                line.quantity ||
+                                (picked?.minOrderQtyKg ? String(picked.minOrderQtyKg) : ''),
+                            })
+                          }}
+                          options={itemOptions}
+                          error={Boolean(
+                            polymerMismatch || (line.itemId && duplicates.includes(line.itemId)),
+                          )}
+                          createLabel="New item"
+                          renderCreateModal={(props) => <ItemModal {...props} />}
+                        />
+                        <span className="min-w-0 font-mono text-2xs text-fg-muted">
+                          {isReel && item?.thicknessMicrons ? (
+                            <>
+                              {item.thicknessMicrons} µm · {item.deckleWidthMm ?? '—'} mm
+                              {item.colour ? <span className="block">{item.colour}</span> : null}
+                            </>
+                          ) : item ? (
+                            <>
+                              {item.purchaseUom}
+                              {item.conversionToStock > 1 ? (
+                                <span className="block">
+                                  1 = {formatNumber(item.conversionToStock)} {item.uom}
+                                </span>
+                              ) : null}
+                            </>
+                          ) : (
+                            '—'
+                          )}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Input
+                            type="number"
+                            step="0.1"
+                            className="text-right"
+                            value={line.quantity}
+                            onChange={(e) => patch(line.key, { quantity: e.target.value })}
+                          />
+                          <span className="w-8 shrink-0 font-mono text-2xs text-fg-muted">
+                            {item?.uom ?? ''}
+                          </span>
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="text-right"
+                          value={line.rate ?? ''}
+                          onChange={(e) => patch(line.key, { rate: e.target.value })}
+                        />
+                        <span className="text-right font-mono text-xs font-medium">
+                          {value > 0 ? formatCurrency(value, 0) : '—'}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Remove line ${index + 1}`}
+                          disabled={lines.length === 1}
+                          onClick={() => remove(line.key)}
+                          className="grid h-7 w-7 place-items-center rounded-md text-fg-subtle transition-colors hover:bg-error-subtle hover:text-error disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-fg-subtle"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      {problem ? (
+                        <p
+                          className={
+                            belowMoq && !polymerMismatch
+                              ? 'px-2 pb-1.5 pl-10 text-2xs text-warning'
+                              : 'px-2 pb-1.5 pl-10 text-2xs text-error'
+                          }
+                        >
+                          {problem}
+                        </p>
+                      ) : isReel && item?.isFoodGrade ? (
+                        <p className="px-2 pb-1.5 pl-10 text-2xs text-fg-subtle">
+                          Food contact grade · incoming QC will ask for a migration certificate
+                        </p>
+                      ) : null}
+                    </li>
+                  )
+                },
+              )}
+            </ul>
+          </div>
         </div>
 
         <div className="mt-2.5">
