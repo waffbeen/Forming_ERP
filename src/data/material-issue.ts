@@ -1,3 +1,4 @@
+import { previewNumber } from '@/lib/document-number'
 import type { MaterialIssue } from '@/types/procurement'
 import { ITEMS } from './masters-extended'
 import { GRNS, STOCK_MOVEMENTS } from './procurement'
@@ -123,8 +124,10 @@ export function issuableReels() {
   )
 }
 
-/** Next issue number, the way the prefix master would hand one out. */
+/** Next issue number, from the prefix master like every other document. */
 export function nextIssueNo() {
-  const last = MATERIAL_ISSUES.map((i) => Number(i.issueNo.slice(-4))).reduce((a, b) => Math.max(a, b), 0)
-  return `MI-2609-${String(last + 1).padStart(4, '0')}`
+  return previewNumber(
+    'MATERIAL_ISSUE',
+    MATERIAL_ISSUES.map((i) => i.issueNo),
+  )
 }

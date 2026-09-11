@@ -272,7 +272,13 @@ export interface AppModule extends MasterBase {
 export type DocumentKind =
   | 'SALES_ORDER'
   | 'JOB_CARD'
+  | 'PURCHASE_REQUISITION'
+  | 'PURCHASE_ORDER'
   | 'GRN'
+  | 'MATERIAL_ISSUE'
+  | 'RM_QC'
+  | 'SUPPLIER_RETURN'
+  | 'NON_CONFORMANCE'
   | 'INVOICE'
   | 'DELIVERY_NOTE'
   | 'COA'

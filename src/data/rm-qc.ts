@@ -3,6 +3,7 @@ import type {
   RmQcReport, RmQcTab,
 } from '@/types/procurement'
 import { PLANT } from '@/config/plant'
+import { previewNumber } from '@/lib/document-number'
 import { CATEGORIES, ITEMS } from './masters-extended'
 import { GRNS, PURCHASE_ORDERS } from './procurement'
 
@@ -406,10 +407,12 @@ export function qcReportForLine(lineId: string) {
   return RM_QC_REPORTS.find((r) => r.grnLineId === lineId) ?? null
 }
 
-/** Next number in the series, the way the prefix master would hand one out. */
-export function nextQcNumber(offset = 0) {
-  const last = RM_QC_REPORTS.map((r) => Number(r.qcNumber.slice(-4))).reduce((a, b) => Math.max(a, b), 0)
-  return `RMQC-2609-${String(last + 1 + offset).padStart(4, '0')}`
+/** Next number in the series, from the prefix master. */
+export function nextQcNumber() {
+  return previewNumber(
+    'RM_QC',
+    RM_QC_REPORTS.map((r) => r.qcNumber),
+  )
 }
 
 // ----------------------------------------------------------------- QC tabs

@@ -14,6 +14,7 @@ import {
   qcReportForLine, rmQcLinesOf, samplePlanFor,
 } from '@/data'
 import { PLANT } from '@/config/plant'
+import { previewNumber } from '@/lib/document-number'
 import { formatDate, formatNumber } from '@/lib/utils'
 import type {
   GoodsReceiptNote, GrnLine, QcCharacteristicResult, QcParameter, QcResult, RejectDisposition,
@@ -870,7 +871,11 @@ export function SupplierReturnModal({ isOpen, onClose, grn, rejects, onDone }: S
               onChange={(e) => setDebitNote(e.target.value)}
               placeholder="Leave blank until accounts raise it"
             />
-            <DerivedField label="Return note" value="Assigned on save" />
+            <DerivedField
+              label="Return note"
+              value={previewNumber('SUPPLIER_RETURN')}
+              emphasis
+            />
           </FormGrid>
         </FormSection>
       ) : null}
