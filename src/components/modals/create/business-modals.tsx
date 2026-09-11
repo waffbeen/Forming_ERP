@@ -209,6 +209,9 @@ export function ItemModal({ isOpen, onClose, onCreated, initialName }: MasterMod
   const [colour, setColour] = React.useState('')
   const [moq, setMoq] = React.useState('')
   const [foodGrade, setFoodGrade] = React.useState(false)
+  const [rollWeight, setRollWeight] = React.useState('')
+  const [purchaseUom, setPurchaseUom] = React.useState('')
+  const [conversion, setConversion] = React.useState('1')
 
   const isRawMaterial = itemType === 'RAW_MATERIAL'
 
@@ -230,6 +233,31 @@ export function ItemModal({ isOpen, onClose, onCreated, initialName }: MasterMod
   React.useEffect(() => {
     if (grade) setRate(String(grade.ratePerKg))
   }, [grade])
+
+  /* Most things are bought in the unit they are kept in, so that is where the
+     purchase unit starts. Packed goods are the exception, not the rule. */
+  React.useEffect(() => {
+    if (uom) setPurchaseUom((current) => current || uom)
+  }, [uom])
+
+  const conversionNum = Number(conversion) || 0
+  const packed = Boolean(purchaseUom && purchaseUom !== uom)
+
+  /**
+   * What a kilogram of this reel actually is. A metre of film is its deckle by
+   * its gauge by its density, so the length on a roll falls out of the three
+   * numbers above — and so does the weight of one formed sheet, which is what
+   * planning costs a job in.
+   */
+  const rollWeightNum = Number(rollWeight) || 0
+  const metresPerKg =
+    grade && micronsNum > 0 && deckleNum > 0
+      ? 1000 / ((deckleNum / 1000) * (micronsNum / 1000) * grade.densityGCm3 * 1000)
+      : 0
+  const gramsPerSheet =
+    grade && micronsNum > 0 && deckleNum > 0
+      ? (deckleNum / 1000) * (PLANT.bedLengthMm / 1000) * (micronsNum / 1000000) * grade.densityGCm3 * 1000000
+      : 0
 
   /* Reels are bought by weight and nothing else, so the UOM is not a choice. */
   React.useEffect(() => {
@@ -388,12 +416,47 @@ export function ItemModal({ isOpen, onClose, onCreated, initialName }: MasterMod
               onChange={(e) => setMoq(e.target.value)}
               helper="A purchase order line opens at this"
             />
-            <DerivedField
-              label="Ordered and stocked in"
-              value="Kilograms"
-              emphasis
+            <Input
+              label="Standard roll weight"
+              unit="KG"
+              type="number"
+              step="0.1"
+              value={rollWeight}
+              onChange={(e) => setRollWeight(e.target.value)}
+              helper={
+                rollWeightNum > 0 && Number(moq) > 0
+                  ? `A ${formatNumber(Number(moq))} kg order is about ${Math.ceil(Number(moq) / rollWeightNum)} rolls`
+                  : 'What one roll weighs as the supplier ships it'
+              }
             />
           </FormGrid>
+          {metresPerKg > 0 ? (
+            <div className="mt-3">
+              <FormGrid cols={3}>
+                <DerivedField
+                  label="Film on a kilogram"
+                  value={`${formatNumber(metresPerKg, 1)} m`}
+                />
+                <DerivedField
+                  label={`Weight of one ${PLANT.bedLengthMm} mm sheet`}
+                  value={`${formatNumber(gramsPerSheet, 1)} g`}
+                />
+                <DerivedField
+                  label="Sheets on a standard roll"
+                  value={
+                    rollWeightNum > 0 && gramsPerSheet > 0
+                      ? formatNumber((rollWeightNum * 1000) / gramsPerSheet)
+                      : '—'
+                  }
+                />
+              </FormGrid>
+              <p className="mt-1.5 text-xs text-fg-subtle">
+                Worked from the deckle, the gauge and the grade's density — nothing here is typed
+                in, so it cannot disagree with the specification above it.
+              </p>
+            </div>
+          ) : null}
+
           <div className="mt-3">
             <Checkbox
               label="Food contact grade"
@@ -404,6 +467,49 @@ export function ItemModal({ isOpen, onClose, onCreated, initialName }: MasterMod
           </div>
         </FormSection>
       ) : null}
+
+      <FormSection
+        title="Units"
+        description="What it is bought in, what it is kept in, and how many of one is in the other."
+      >
+        <FormGrid cols={3}>
+          <DerivedField label="Stock unit" value={uom || '—'} emphasis />
+          <Select
+            label="Purchase unit"
+            required
+            placeholder="Select the unit"
+            value={purchaseUom}
+            onChange={(e) => setPurchaseUom(e.target.value)}
+            disabled={isRawMaterial}
+            options={[
+              { value: 'KG', label: 'Kilograms' },
+              { value: 'NOS', label: 'Numbers' },
+              { value: 'MTR', label: 'Metres' },
+              { value: 'LTR', label: 'Litres' },
+              { value: 'BOX', label: 'Box' },
+              { value: 'CAN', label: 'Can' },
+              { value: 'ROLL', label: 'Roll' },
+            ]}
+            helper={
+              isRawMaterial ? 'Reels are bought by weight and nothing else' : undefined
+            }
+          />
+          <Input
+            label="One purchase unit holds"
+            unit={uom || 'stock units'}
+            type="number"
+            step="0.01"
+            value={conversion}
+            disabled={!packed}
+            onChange={(e) => setConversion(e.target.value)}
+            helper={
+              packed
+                ? `1 ${purchaseUom} = ${conversionNum || '—'} ${uom}`
+                : 'Bought loose, in the unit it is kept in'
+            }
+          />
+        </FormGrid>
+      </FormSection>
 
       <FormSection title="Sourcing and stock">
         <FormGrid cols={2}>

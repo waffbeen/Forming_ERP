@@ -57,8 +57,23 @@ export interface Item extends MasterBase {
   itemName: string
   itemType: ItemType
   categoryId: string
-  /** Everything the plant buys is stocked in one of these. */
+  /**
+   * The unit stock is held and issued in. Raw material is always KG: the plant
+   * buys reels by weight and nothing else, so the unit is not a choice on a
+   * reel.
+   */
   uom: 'KG' | 'NOS' | 'MTR' | 'LTR' | 'BOX'
+  /**
+   * The unit it is bought in, which is not always the unit it is kept in: tape
+   * comes in a box of 72 and is issued one roll at a time. Same as `uom` on
+   * anything bought loose, which includes every reel.
+   */
+  purchaseUom: 'KG' | 'NOS' | 'MTR' | 'LTR' | 'BOX' | 'ROLL' | 'CAN' | 'BOX_72'
+  /**
+   * How many stock units are in one purchase unit. A purchase order line
+   * states both, and the receipt converts on the way in.
+   */
+  conversionToStock: number
   defaultSupplierId: string | null
   defaultBinId: string | null
   reorderLevel: number
@@ -87,6 +102,12 @@ export interface Item extends MasterBase {
   minOrderQtyKg?: number
   /** Food-contact stock, which incoming QC asks for a migration certificate on. */
   isFoodGrade?: boolean
+  /**
+   * What one roll of it weighs as the supplier ships it. An order is placed in
+   * kilograms but arrives as rolls, and this is what tells the store how many
+   * to expect on the vehicle.
+   */
+  standardRollWeightKg?: number
 }
 
 // ------------------------------------------------------------------- Product
