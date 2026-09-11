@@ -64,6 +64,13 @@ interface DraftLine {
   requiredBy?: string
   jobCardNo?: string
   remarks?: string
+  /**
+   * Set when the line was pulled off a requisition rather than picked by hand.
+   * The order keeps the link so the buyer can see what was asked for, and so
+   * the requisition can be closed against what was actually ordered.
+   */
+  fromPr?: string
+  prLineId?: string
 }
 
 /* One template per document, so the header and every row line up. */
@@ -139,6 +146,23 @@ function useDraftLines() {
         }),
     ])
 
+  /**
+   * Swap whichever lines came off a requisition for a different requisition's.
+   * Lines the buyer added by hand are left alone — picking a requisition adds
+   * what was asked for, it does not throw away what the buyer has already put
+   * on the order.
+   */
+  const takeFromRequisition = (prNumber: string, asked: Partial<DraftLine>[]) =>
+    setLines((rows) => {
+      const kept = rows.filter((r) => !r.fromPr)
+      return [
+        ...kept,
+        ...asked
+          .filter((a) => a.itemId && !kept.some((r) => r.itemId === a.itemId))
+          .map((a) => ({ ...newLine(), ...a, fromPr: prNumber }) as DraftLine),
+      ]
+    })
+
   const remove = (key: string) => setLines((rows) => rows.filter((r) => r.key !== key))
   const patch = (key: string, values: Partial<DraftLine>) =>
     setLines((rows) => rows.map((r) => (r.key === key ? { ...r, ...values } : r)))
@@ -149,7 +173,7 @@ function useDraftLines() {
     .map((r) => r.itemId)
     .filter((id, i, all) => id && all.indexOf(id) !== i)
 
-  return { lines, addItems, remove, patch, reset, duplicates }
+  return { lines, addItems, takeFromRequisition, remove, patch, reset, duplicates }
 }
 
 // ------------------------------------------------------- Purchase requisition
@@ -357,14 +381,48 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
   const [gst, setGst] = React.useState('18')
   const [expected, setExpected] = React.useState('')
   const [pickerOpen, setPickerOpen] = React.useState(false)
-  const { lines, addItems, remove, patch, reset, duplicates } = useDraftLines()
+  const { lines, addItems, takeFromRequisition, remove, patch, reset, duplicates } = useDraftLines()
 
   React.useEffect(() => {
-    if (isOpen) reset()
+    if (isOpen) {
+      reset()
+      setPrNumber('')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   const supplier = SUPPLIERS.find((s) => s.supplierId === supplierId)
+
+  /**
+   * A requisition is a list of what the plant asked for. Choosing one puts that
+   * list straight onto the order — item, quantity, the date it was wanted and
+   * the job card it was raised for — priced at what the item master says it is
+   * bought at. The buyer then edits rather than re-keys.
+   */
+  const selectRequisition = (next: string) => {
+    setPrNumber(next)
+    const pr = PURCHASE_REQUISITIONS.find((p) => p.prNumber === next)
+    takeFromRequisition(
+      next,
+      pr
+        ? pr.lines.map((l) => {
+            const item = ITEMS.find((i) => i.itemId === l.itemId)
+            return {
+              itemId: l.itemId,
+              quantity: String(l.quantity),
+              rate: item ? String(item.ratePerUom) : '',
+              deliveryDate: l.requiredBy,
+              jobCardNo: l.forJobCardNo ?? undefined,
+              remarks: l.remarks || undefined,
+              prLineId: l.lineId,
+            }
+          })
+        : [],
+    )
+    /* The order is wanted no later than the earliest line on the requisition. */
+    const earliest = pr?.lines.map((l) => l.requiredBy).sort()[0]
+    if (earliest && !expected) setExpected(earliest)
+  }
 
   /**
    * Each line, priced. The reel specification is not asked for again: it is
@@ -423,6 +481,7 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
   const approved = PURCHASE_REQUISITIONS.filter(
     (p) => p.prStatus === 'APPROVED' || p.prStatus === 'SUBMITTED',
   )
+  const fromPr = lines.filter((l) => l.fromPr)
 
   return (
     <StandardModal
@@ -472,8 +531,16 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
             label="Against requisition"
             placeholder="None, direct order"
             value={prNumber}
-            onChange={(e) => setPrNumber(e.target.value)}
-            options={approved.map((p) => ({ value: p.prNumber, label: `${p.prNumber} — ${p.department}` }))}
+            onChange={(e) => selectRequisition(e.target.value)}
+            helper={
+              fromPr.length > 0
+                ? `${fromPr.length} ${fromPr.length === 1 ? 'item' : 'items'} pulled onto the order`
+                : 'Its items come onto the order as they were asked for'
+            }
+            options={approved.map((p) => ({
+              value: p.prNumber,
+              label: `${p.prNumber} — ${p.department} · ${p.lines.length} ${p.lines.length === 1 ? 'item' : 'items'}`,
+            }))}
           />
           <DerivedField
             label="PO number"
@@ -639,6 +706,14 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
                         >
                           {problem}
                         </p>
+                      ) : line.fromPr ? (
+                        <p className="px-2 pb-1.5 pl-10 text-2xs text-fg-subtle">
+                          Asked for on {line.fromPr}
+                          {line.jobCardNo ? ` for ${line.jobCardNo}` : ''}
+                          {converted
+                            ? ` · ${formatNumber(qty)} ${item?.purchaseUom} is ${formatNumber(stockQty)} ${item?.uom} into stock`
+                            : ''}
+                        </p>
                       ) : converted || (isReel && item?.isFoodGrade) ? (
                         <p className="px-2 pb-1.5 pl-10 text-2xs text-fg-subtle">
                           {converted
@@ -656,7 +731,8 @@ export function PurchaseOrderModal({ isOpen, onClose }: MasterModalProps) {
 
         {lines.length === 0 ? (
           <p className="px-2 py-6 text-center text-sm text-fg-muted">
-            Nothing on the order yet. Add what the supplier is being sent from the item master.
+            Nothing on the order yet. Pick a requisition above to order what was asked for, or add items
+            straight off the master.
           </p>
         ) : null}
 
