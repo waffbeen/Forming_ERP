@@ -82,7 +82,6 @@ export default function JobCardPage() {
         <DataTable
           title="Job card queue"
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
-          mainColumns="jc,artwork,target,stage"
           rows={JOB_CARDS}
           columns={columns}
           rowKey={(r) => r.jobCardId}

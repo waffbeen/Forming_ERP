@@ -13,7 +13,6 @@ export interface MasterPageProps<T> {
   columns: Column<T>[]
   rowKey: (row: T) => string
   /** Column keys the grid keeps visible when space is tight. */
-  mainColumns?: string
   /** The create modal for this master. MasterPage owns its open state. */
   createModal?: (props: { isOpen: boolean; onClose: () => void }) => React.ReactNode
 }
@@ -31,7 +30,6 @@ export function MasterPage<T>({
   rows,
   columns,
   rowKey,
-  mainColumns,
   createModal,
 }: MasterPageProps<T>) {
   const [createOpen, setCreateOpen] = React.useState(false)
@@ -62,7 +60,6 @@ export function MasterPage<T>({
         columns={columns}
         rowKey={rowKey}
         title={title}
-        mainColumns={mainColumns}
         onOpen={createModal ? (row) => setEditRow(row) : undefined}
       />
 

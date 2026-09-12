@@ -174,7 +174,6 @@ export default function GrnPage() {
           rows={rows}
           columns={columns}
           rowKey={(r) => r.grnId}
-          mainColumns="grn,po,supplier,qc"
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
           selectedKey={selected.grnId}
           onSelect={(r) => setSelectedId(r.grnId)}

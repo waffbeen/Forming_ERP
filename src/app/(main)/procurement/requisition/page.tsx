@@ -104,7 +104,6 @@ export default function RequisitionPage() {
           rows={rows}
           columns={columns}
           rowKey={(r) => r.prId}
-          mainColumns="pr,dept,items,status"
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
           selectedKey={selected.prId}
           onSelect={(r) => setSelectedId(r.prId)}

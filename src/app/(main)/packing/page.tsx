@@ -202,7 +202,6 @@ export default function PackingPage() {
             rows={PACKING_RECORDS}
             columns={columns}
             rowKey={(r) => r.packingId}
-            mainColumns="job,good,rej,fg"
             selectedKey={selectedId}
             onSelect={(r) => setSelectedId(r.packingId)}
           onOpen={(r) => { setSelectedId(r.packingId); setDetailOpen(true) }}

@@ -152,7 +152,6 @@ export default function MaterialIssuePage() {
         rows={rows}
         columns={columns}
         rowKey={(r) => r.issueId}
-        mainColumns="issue,job,item,qty"
         toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
       />
 

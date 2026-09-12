@@ -176,7 +176,6 @@ export default function NonConformancePage() {
         rows={rows}
         columns={columns}
         rowKey={(r) => r.ncId}
-        mainColumns="nc,source,param,status,act"
         actions={actions}
         toolbar={<Tabs tabs={tabs} activeId={tab} onChange={(id) => setTab(id as NcStatus | 'ALL')} />}
       />

@@ -124,7 +124,6 @@ export default function InProcessQcPage() {
         rows={IN_PROCESS_CHECKS}
         columns={checkColumns}
         rowKey={(r) => r.checkId}
-        mainColumns="time,insp,thk,res"
       />
 
       <Note>

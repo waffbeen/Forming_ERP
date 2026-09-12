@@ -134,7 +134,6 @@ export default function EstimationPage() {
       <DataTable
         title="Offer register"
         toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
-        mainColumns="est,customer,rate,status"
         rows={rows}
         columns={columns}
         rowKey={(r) => r.estimationId}

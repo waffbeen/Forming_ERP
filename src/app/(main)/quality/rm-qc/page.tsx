@@ -163,7 +163,6 @@ export default function RmQcPage() {
         rows={rows}
         columns={columns}
         rowKey={(r) => r.grnId}
-        mainColumns="grn,supplier,split"
         toolbar={<Tabs tabs={tabs} activeId={tab} onChange={(id) => setTab(id as RmQcTab)} />}
         selectedKey={selected?.grnId}
         onSelect={(r) => setSelectedId(r.grnId)}

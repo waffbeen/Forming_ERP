@@ -78,7 +78,6 @@ export default function FgCoaPage() {
         rows={COAS}
         columns={columns}
         rowKey={(r) => r.coaId}
-        mainColumns="coa,job,cust,lock"
         selectedKey={selected.coaId}
         onSelect={(r) => setSelectedId(r.coaId)}
       />

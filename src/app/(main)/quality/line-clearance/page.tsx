@@ -103,7 +103,6 @@ export default function LineClearancePage() {
         rows={JOB_CARDS}
         columns={columns}
         rowKey={(r) => r.jobCardNo}
-        mainColumns="job,machine,gate"
       />
 
       <Note>

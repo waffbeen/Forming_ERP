@@ -174,7 +174,6 @@ export default function SalesOrderPage() {
       <DataTable
         title="Order queue"
         toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
-        mainColumns="so,customer,items,status"
         rows={rows}
         columns={columns}
         rowKey={(r) => r.salesOrderId}

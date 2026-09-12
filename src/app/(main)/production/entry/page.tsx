@@ -126,7 +126,6 @@ export default function ProductionEntryPage() {
         rows={rows}
         columns={columns}
         rowKey={(r) => r.entryId}
-        mainColumns="date,pwo,machine,qty"
         toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
         selectedKey={selected?.entryId}
         onSelect={(r) => setSelectedId(r.entryId)}

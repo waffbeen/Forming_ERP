@@ -20,8 +20,10 @@ export interface DataTableProps<T> {
   columns: Column<T>[]
   rowKey: (row: T) => string
   title?: React.ReactNode
-  /** Comma-separated column keys the grid keeps visible when space is tight. */
-  mainColumns?: string
+  /* No mainColumns here on purpose. The grid renders a column named there
+     from its accessor instead of from the cell it was given, which silently
+     drops every badge, stacked cell and currency symbol on that column. The
+     grid's own column toggle covers the same need without the cost. */
   selectedKey?: string
   /** Single click: selects the row. */
   onSelect?: (row: T) => void
@@ -78,7 +80,6 @@ export function DataTable<T>({
   columns,
   rowKey,
   title,
-  mainColumns,
   selectedKey,
   onSelect,
   onOpen,
@@ -137,7 +138,6 @@ export function DataTable<T>({
       title={title}
       loading={loading}
       hideHeader={!title}
-      mainColumns={mainColumns}
       preToggleActions={toolbar}
       selectedRowIds={selectedKey ? [selectedKey] : undefined}
       onRowClick={onSelect || onOpen ? handleRowClick : undefined}

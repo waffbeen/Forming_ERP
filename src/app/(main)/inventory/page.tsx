@@ -146,7 +146,6 @@ export default function InventoryPage() {
             rows={ITEMS}
             columns={itemColumns}
             rowKey={(r) => r.itemId}
-            mainColumns="code,onhand,reorder,status"
             toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
             selectedKey={selected.itemId}
             onSelect={(r) => setSelectedItemId(r.itemId)}
@@ -181,7 +180,6 @@ export default function InventoryPage() {
             rows={STOCK_MOVEMENTS}
             columns={moveColumns}
             rowKey={(r) => r.movementId}
-            mainColumns="date,kind,item,qty"
             toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
             summary={{
               date: { type: 'custom', customFn: (rows) => `${rows.length} movements` },

@@ -193,7 +193,6 @@ export default function ItemQcParameterPage() {
         rows={rows}
         columns={columns}
         rowKey={(r) => r.parameterId}
-        mainColumns="characteristic,type,limits"
         onOpen={openEdit}
         actions={actions}
       />

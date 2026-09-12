@@ -146,7 +146,6 @@ export default function JobClosePage() {
           rows={ready}
           columns={readyColumns}
           rowKey={(r) => r.jobCardNo}
-          mainColumns="job,customer,produced,state"
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
           selectedKey={selectedJob ?? undefined}
           onSelect={(r) => setSelectedJob(r.jobCardNo)}
@@ -162,7 +161,6 @@ export default function JobClosePage() {
           rows={JOB_CLOSURES}
           columns={closedColumns}
           rowKey={(r) => r.closureId}
-          mainColumns="job,closed,produced,reason"
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
           summary={{
             job: { type: 'custom', customFn: (r) => `${r.length} closed` },

@@ -142,7 +142,6 @@ export default function EnquiryPage() {
       <DataTable
         title="Enquiry register"
         toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
-        mainColumns="enq,customer,product,status"
         rows={rows}
         columns={columns}
         rowKey={(r) => r.enquiryId}

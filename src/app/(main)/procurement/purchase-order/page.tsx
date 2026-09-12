@@ -119,7 +119,6 @@ export default function PurchaseOrderPage() {
           rows={rows}
           columns={columns}
           rowKey={(r) => r.poId}
-          mainColumns="po,supplier,received,status"
           toolbar={<Tabs tabs={TABS} activeId={tab} onChange={setTab} />}
           selectedKey={selected.poId}
           onSelect={(r) => setSelectedId(r.poId)}
